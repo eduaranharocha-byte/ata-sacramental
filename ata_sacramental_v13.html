@@ -1,0 +1,3275 @@
+<!DOCTYPE html>
+<!--
+=======================================================================
+  ATA SACRAMENTAL — Ala Bougainville · Estaca Anápolis Brasil
+  Versão para repositório público (dados pessoais removidos)
+=======================================================================
+
+  ANTES DE USAR, configure as seguintes variáveis no bloco <script>:
+
+  1. SUPABASE_URL   → URL do seu projeto Supabase
+                      Ex: https://xyzxyzxyz.supabase.co
+
+  2. SUPABASE_ANON_KEY → Chave anon/public do seu projeto Supabase
+                         Encontrada em: Settings > API > Project API Keys
+
+  3. COD_ESTACA / COD_ALA → Códigos numéricos usados como senha de acesso
+                             (validação na função fazerLogin)
+
+  MEMBROS:
+  - A lista de membros NÃO está incluída neste repositório por privacidade.
+  - Os membros são carregados exclusivamente da tabela `membros_extras`
+    no banco de dados Supabase.
+  - Novos membros podem ser adicionados diretamente pelo sistema
+    (campo de autocomplete com opção "+ Adicionar novo membro").
+
+=======================================================================
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ata Sacramental – Ala Bougainville</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --verde: #2d6a2d;
+  --verde-escuro: #1a4a1a;
+  --verde-claro: #4a9a4a;
+  --verde-bg: #f0f7f0;
+  --verde-header: #2d6a2d;
+  --amarelo: #fffde7;
+  --amarelo-campo: #fff9c4;
+  --cinza: #555;
+  --cinza-claro: #f5f5f5;
+  --branco: #fff;
+  --texto: #222;
+  --borda: #c8e6c9;
+  --sombra: 0 2px 12px rgba(45,106,45,0.10);
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #e8f5e9;
+  color: var(--texto);
+  min-height: 100vh;
+}
+
+/* ---- LOGIN ---- */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a4a1a 0%, #2d6a2d 60%, #4a9a4a 100%);
+  padding: 20px;
+  overflow-y: auto;
+}
+.login-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px 36px 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+}
+.login-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-logo .church-emblem {
+  width: 64px;
+  height: 64px;
+  background: var(--verde);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.login-logo .church-emblem svg { width: 36px; height: 36px; fill: white; }
+.login-logo h1 {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.5rem;
+  color: var(--verde-escuro);
+  line-height: 1.2;
+}
+.login-logo p { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+.login-card label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--verde-escuro);
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+.login-card select, .login-card input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+  transition: border-color 0.2s;
+}
+.login-card select:focus, .login-card input:focus {
+  outline: none;
+  border-color: var(--verde);
+  background: white;
+}
+.login-btn {
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px;
+  background: var(--verde);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
+}
+.login-btn:hover { background: var(--verde-escuro); }
+.login-error {
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  color: #c62828;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-top: 14px;
+  display: none;
+}
+
+/* ---- APP LAYOUT ---- */
+#app { display: none; }
+
+.top-bar {
+  background: var(--verde-header);
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.top-bar-left { display: flex; align-items: center; gap: 12px; }
+.top-bar-logo {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.top-bar-logo span { font-size: 0.75rem; font-weight: 300; display: block; opacity: 0.8; }
+.top-bar-right { display: flex; align-items: center; gap: 14px; }
+.usuario-badge {
+  background: rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.btn-sair {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
+}
+.btn-sair:hover { background: rgba(255,255,255,0.25); }
+
+/* ---- CONTAINER ---- */
+.container { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+/* ---- ATA HEADER ---- */
+.ata-header-bar {
+  background: white;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--sombra);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ata-select-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.ata-select-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--verde-escuro);
+  white-space: nowrap;
+}
+.ata-select-group select, .ata-select-group input[type="date"] {
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+  cursor: pointer;
+}
+.ata-select-group select:focus { outline: none; border-color: var(--verde); }
+.btn-nova-ata {
+  background: var(--verde);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 9px 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.btn-nova-ata:hover { background: var(--verde-escuro); }
+
+.status-salvamento {
+  font-size: 0.78rem;
+  color: #888;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  white-space: nowrap;
+}
+.status-salvamento.salvando { background: #fff3e0; color: #e65100; }
+.status-salvamento.salvo { background: #e8f5e9; color: #2e7d32; }
+
+/* ---- SECTION CARD ---- */
+.section-card {
+  background: white;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+.section-header {
+  background: var(--verde-header);
+  color: white;
+  padding: 10px 18px;
+  font-family: 'EB Garamond', serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-header .icon { font-size: 1.1rem; }
+.section-body { padding: 18px; }
+
+/* ---- FORM FIELDS ---- */
+.field-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.field-row label {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--verde-escuro);
+  min-width: 130px;
+  padding-top: 9px;
+  flex-shrink: 0;
+}
+.field-row .field-input { flex: 1; min-width: 200px; }
+
+.field-input input[type="text"],
+.field-input textarea,
+.field-input select {
+  width: 100%;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.92rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+  transition: border-color 0.2s, background 0.2s;
+}
+.field-input input[type="text"]:focus,
+.field-input textarea:focus,
+.field-input select:focus {
+  outline: none;
+  border-color: var(--verde);
+  background: white;
+}
+.field-input textarea { resize: vertical; min-height: 80px; }
+
+/* ---- INSTRUCTION BOX ---- */
+.instrucao {
+  background: #f9fbe7;
+  border-left: 3px solid #cddc39;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  margin: 10px 0 14px;
+  font-size: 0.84rem;
+  color: #555;
+  font-style: italic;
+  line-height: 1.5;
+}
+.instrucao strong { font-style: normal; color: #333; }
+
+/* ---- ORACAO BOX ---- */
+.oracao-box {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 10px 0;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.7;
+  color: #333;
+}
+
+/* ---- HINO AUTOCOMPLETE ---- */
+.hino-wrapper { position: relative; }
+.hino-wrapper input { width: 100%; }
+.hino-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid var(--verde);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.hino-dropdown.open { display: block; }
+.hino-option {
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.12s;
+}
+.hino-option:hover { background: var(--verde-bg); }
+.hino-option .hino-num {
+  font-weight: 700;
+  color: var(--verde);
+  margin-right: 6px;
+  min-width: 42px;
+  display: inline-block;
+}
+
+/* ---- MEMBER AUTOCOMPLETE ---- */
+.membro-wrapper { position: relative; }
+.membro-wrapper input { width: 100%; }
+.membro-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid var(--verde);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.membro-dropdown.open { display: block; }
+.membro-option {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.12s;
+}
+.membro-option:hover, .membro-option.dropdown-ativo { background: var(--verde-bg); }
+.hino-option:hover, .hino-option.dropdown-ativo { background: var(--verde-bg); }
+.add-novo-membro {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--verde);
+  font-weight: 600;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+.add-novo-membro:hover { background: var(--verde-bg); }
+
+/* ---- REPEATABLE ROWS ---- */
+.repeatable-group { margin-top: 8px; }
+.repeatable-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.repeatable-row .rr-label {
+  font-size: 0.8rem;
+  color: #888;
+  min-width: 50px;
+}
+.repeatable-row input,
+.repeatable-row select {
+  flex: 1;
+  min-width: 120px;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+}
+.repeatable-row input:focus, .repeatable-row select:focus {
+  outline: none; border-color: var(--verde); background: white;
+}
+.btn-rem-row {
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  color: #c62828;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.btn-rem-row:hover { background: #ef9a9a; color: white; }
+.btn-add-row {
+  background: var(--verde-bg);
+  border: 2px dashed var(--verde-claro);
+  color: var(--verde);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 4px;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
+}
+.btn-add-row:hover { background: #c8e6c9; }
+
+/* ---- FREQUENCIA ---- */
+.freq-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.freq-item { display: flex; align-items: center; gap: 8px; }
+.freq-item label { font-size: 0.85rem; font-weight: 600; color: var(--verde-escuro); white-space: nowrap; }
+.freq-item input[type="number"] {
+  width: 90px;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+  text-align: center;
+}
+.freq-item input[type="number"]:focus {
+  outline: none; border-color: var(--verde); background: white;
+}
+
+/* ---- TESTEMUNHOS ---- */
+.testemunhos-area textarea {
+  width: 100%;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  min-height: 100px;
+  resize: vertical;
+}
+.testemunhos-area textarea:focus {
+  outline: none; border-color: var(--verde); background: white;
+}
+
+/* ---- LOG PANEL ---- */
+.log-toggle {
+  text-align: center;
+  margin: 10px 0;
+}
+.log-toggle button {
+  background: none;
+  border: 1px solid var(--borda);
+  color: var(--cinza);
+  border-radius: var(--radius);
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.log-panel {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-top: 8px;
+  display: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.log-entry {
+  font-size: 0.78rem;
+  color: #555;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.log-entry .log-time { color: #999; }
+.log-entry .log-user { color: var(--verde); font-weight: 600; }
+
+/* ---- TOAST ---- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--verde-escuro);
+  color: white;
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 600px) {
+  .field-row { flex-direction: column; }
+  .field-row label { min-width: unset; padding-top: 0; }
+  .ata-header-bar { flex-direction: column; align-items: flex-start; }
+  .top-bar-logo .top-bar-title { font-size: 0.95rem; }
+  .freq-row { gap: 10px; }
+  .top-bar { padding: 8px 12px; }
+  .container { padding: 14px 10px 60px; }
+  .section-body { padding: 14px; }
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9998;
+}
+.loading-box {
+  background: white;
+  border-radius: var(--radius);
+  padding: 28px 36px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--verde-escuro);
+}
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 4px solid var(--borda);
+  border-top-color: var(--verde);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.sunday-picker-note {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* ---- PRINT / PDF ---- */
+@media print {
+  @page { margin: 1.2cm; size: A4; }
+  body { background: white !important; font-size: 10pt; color: #000; }
+  .top-bar, .ata-header-bar, .btn-add-row, .btn-rem-row,
+  .log-toggle, .log-panel, .btn-sair, .status-salvamento,
+  .hino-dropdown, .membro-dropdown { display: none !important; }
+  #app { display: block !important; }
+  #login-screen { display: none !important; }
+  .container { max-width: 100%; padding: 0; margin: 0; }
+  /* Blocos não quebram página sozinhos — fluem um abaixo do outro */
+  .section-card {
+    box-shadow: none !important;
+    border: 1pt solid #aaa;
+    margin-bottom: 6pt;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  .section-header {
+    background: #2d6a2d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: white !important;
+    padding: 5pt 10pt;
+    font-size: 10pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .section-body { padding: 6pt 10pt; }
+  .field-row { margin-bottom: 4pt; flex-wrap: nowrap; }
+  .field-row label { font-size: 8.5pt; min-width: 100px; padding-top: 2pt; }
+  .field-input { flex: 1; }
+  input[type="text"], textarea, select {
+    border: 0.5pt solid #999 !important;
+    background: white !important;
+    font-size: 9.5pt;
+    padding: 2pt 5pt;
+    width: 100% !important;
+  }
+  textarea {
+    display: none !important;
+  }
+  .print-text-proxy {
+    display: block !important;
+    border: 0.5pt solid #999;
+    background: white !important;
+    font-size: 9.5pt;
+    font-family: 'Inter', sans-serif;
+    padding: 4pt 6pt;
+    width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    min-height: 14pt;
+  }
+  .oracao-box {
+    border: 0.5pt solid #ccc;
+    font-size: 8.5pt;
+    padding: 5pt;
+    margin: 4pt 0;
+    break-inside: avoid;
+  }
+  .instrucao {
+    border-left: 2pt solid #aaa;
+    font-size: 8pt;
+    padding: 3pt 6pt;
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 3pt 0;
+  }
+  .repeatable-row { margin-bottom: 3pt; gap: 5pt; }
+  .repeatable-row input, .repeatable-row select { font-size: 9pt; padding: 2pt 4pt; }
+  .freq-row { gap: 16pt; }
+  .freq-item input[type="number"] { width: 50pt; font-size: 9.5pt; padding: 2pt 4pt; }
+  .grid-2 { grid-template-columns: 1fr 1fr; gap: 8pt; }
+  .testemunhos-area textarea { min-height: 40pt; }
+  .print-header { display: block !important; }
+  p[style*="font-weight:700"] { font-size: 9pt; margin-bottom: 2pt; }
+  hr { margin: 6pt 0; }
+
+  /* ---- IMPRESSÃO INTELIGENTE ---- */
+  .print-hidden { display: none !important; }
+
+  /* Bloco totalmente sem dados: body compacto */
+  .print-sem-dados {
+    padding: 4pt 10pt !important;
+  }
+  .print-sem-dados > *:not(.print-sem-dados-label) { display: none !important; }
+  .print-sem-dados-label {
+    display: block !important;
+    font-size: 8pt;
+    color: #888;
+    font-style: italic;
+    padding: 2pt 0;
+  }
+
+  /* Wrapper de sub-bloco oculto */
+  .assunto-wrap.print-hidden { display: none !important; }
+
+  /* Ocultar freq-item sem dados */
+  .freq-item.print-hidden { display: none !important; }
+}
+.print-header {
+  display: none;
+  text-align: center;
+  margin-bottom: 12pt;
+  font-family: 'EB Garamond', serif;
+}
+.print-header h2 { font-size: 16pt; color: #1a4a1a; }
+.print-header p { font-size: 10pt; color: #555; }
+
+/* ---- TELA SELEÇÃO DE ATA ---- */
+#tela-selecao {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a4a1a 0%, #2d6a2d 60%, #4a9a4a 100%);
+  padding: 20px;
+  overflow-y: auto;
+}
+.selecao-card {
+  background: white;
+  border-radius: 16px;
+  padding: 36px 32px 32px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.35);
+}
+.selecao-logo {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.selecao-logo .church-emblem {
+  width: 52px; height: 52px;
+  background: var(--verde);
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+}
+.selecao-logo .church-emblem svg { width: 28px; height: 28px; fill: white; }
+.selecao-card h2 {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.4rem;
+  color: var(--verde-escuro);
+  margin-bottom: 4px;
+  text-align: center;
+}
+.selecao-card .usuario-info {
+  font-size: 0.82rem; color: #888; margin-bottom: 0; text-align: center;
+}
+.selecao-bloco {
+  background: #f8fdf8;
+  border: 1.5px solid var(--borda);
+  border-radius: 10px;
+  padding: 18px 18px 16px;
+  margin-top: 20px;
+}
+.selecao-bloco-titulo {
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--verde-escuro);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.selecao-card select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+  color: var(--texto);
+}
+.selecao-card select:focus { outline: none; border-color: var(--verde); background: white; }
+.btn-abrir-ata {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--verde);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
+}
+.btn-abrir-ata:hover { background: var(--verde-escuro); }
+.btn-nova-ata-selecao {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  background: white;
+  color: var(--verde);
+  border: 2px solid var(--verde);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+.btn-nova-ata-selecao:hover { background: var(--verde-bg); }
+.nova-ata-date-wrap { margin-top: 0; }
+.nova-ata-date-wrap label {
+  display: block; font-size: 0.82rem; font-weight: 600;
+  color: var(--verde-escuro); margin-bottom: 6px;
+}
+.nova-ata-date-wrap input[type="date"] {
+  width: 100%; padding: 10px 14px;
+  border: 2px solid var(--borda); border-radius: var(--radius);
+  font-size: 0.95rem; font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo); color: var(--texto);
+}
+.nova-ata-date-wrap input[type="date"]:focus {
+  outline: none; border-color: var(--verde); background: white;
+}
+.selecao-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0; color: #bbb; font-size: 0.82rem;
+}
+.selecao-divider::before, .selecao-divider::after {
+  content: ''; flex: 1; height: 1px; background: #d0d0d0;
+}
+
+/* ---- DATA FIXA NA ATA ---- */
+.data-ata-badge {
+  background: var(--verde-bg);
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--verde-escuro);
+  font-family: 'EB Garamond', serif;
+}
+
+/* ---- VISITANTES (grupo de nomes) ---- */
+.visitantes-group { margin-top: 6px; }
+.visitantes-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.visitantes-row input {
+  flex: 1;
+  border: 2px solid var(--borda);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  font-size: 0.88rem;
+  font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+}
+.visitantes-row input:focus { outline: none; border-color: var(--verde); background: white; }
+.visitantes-num {
+  font-size: 0.75rem; color: #aaa; min-width: 18px; text-align: right;
+}
+
+/* ---- FALTANTES ---- */
+.faltante-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 7px; flex-wrap: wrap;
+}
+.faltante-row .faltante-nome {
+  flex: 2; min-width: 160px;
+  border: 2px solid var(--borda); border-radius: var(--radius);
+  padding: 7px 12px; font-size: 0.88rem;
+  font-family: 'Inter', sans-serif; background: var(--amarelo-campo);
+}
+.faltante-row .faltante-nome:focus { outline: none; border-color: var(--verde); background: white; }
+.faltante-row .faltante-org {
+  flex: 1; min-width: 150px;
+  border: 2px solid var(--borda); border-radius: var(--radius);
+  padding: 7px 10px; font-size: 0.83rem;
+  font-family: 'Inter', sans-serif; background: var(--amarelo-campo); color: var(--texto);
+}
+.faltante-row .faltante-org:focus { outline: none; border-color: var(--verde); background: white; }
+
+/* ---- MODAL ESTATÍSTICAS ---- */
+#modal-stats {
+  position: fixed; inset: 0; display: none;
+  align-items: flex-start; justify-content: center;
+  z-index: 9100; padding: 20px; overflow-y: auto;
+}
+.stats-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); }
+.stats-box {
+  position: relative; background: white; border-radius: 14px;
+  width: 100%; max-width: 900px; margin: 0 auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3); overflow: hidden;
+}
+.stats-header {
+  background: var(--verde); color: white; padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'EB Garamond', serif; font-size: 1.15rem; font-weight: 600;
+}
+.stats-filters {
+  padding: 14px 20px; background: #f8fdf8; border-bottom: 1px solid #e0e0e0;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.stats-filters label { font-size: 0.82rem; font-weight: 600; color: var(--verde-escuro); }
+.stats-filters select, .stats-filters input[type="number"] {
+  border: 2px solid var(--borda); border-radius: var(--radius);
+  padding: 7px 12px; font-size: 0.88rem; font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo); cursor: pointer;
+}
+.stats-filters select:focus, .stats-filters input:focus { outline: none; border-color: var(--verde); }
+.btn-gerar-stats {
+  background: var(--verde); color: white; border: none;
+  border-radius: var(--radius); padding: 8px 18px;
+  font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: background 0.2s;
+}
+.btn-gerar-stats:hover { background: var(--verde-escuro); }
+.stats-body { padding: 20px; }
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 12px; margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--verde-bg); border: 1px solid var(--borda);
+  border-radius: var(--radius); padding: 14px 16px; text-align: center;
+}
+.stat-card .stat-num { font-size: 1.8rem; font-weight: 700; color: var(--verde); line-height: 1; }
+.stat-card .stat-label { font-size: 0.76rem; color: #666; margin-top: 4px; }
+.stats-section-title {
+  font-weight: 700; font-size: 0.88rem; color: var(--verde-escuro);
+  margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 0.4px;
+  border-bottom: 2px solid var(--borda); padding-bottom: 6px;
+}
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-bottom: 16px; }
+.stats-table th {
+  background: var(--verde); color: white; padding: 8px 12px;
+  text-align: left; font-weight: 600; font-size: 0.8rem;
+}
+.stats-table td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; }
+.stats-table tr:nth-child(even) td { background: #f8fdf8; }
+.stats-table tr:hover td { background: var(--verde-bg); }
+.badge-org {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 0.73rem; font-weight: 600;
+}
+.badge-qe { background: #e3f2fd; color: #1565c0; }
+.badge-ss { background: #fce4ec; color: #880e4f; }
+.badge-rap { background: #e8f5e9; color: #1b5e20; }
+.badge-moc { background: #fff3e0; color: #e65100; }
+.badge-jas { background: #f3e5f5; color: #6a1b9a; }
+.badge-pri { background: #fffde7; color: #f57f17; }
+.stats-bar-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.stats-bar-label { font-size: 0.8rem; min-width: 160px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-bar-bg { flex: 1; background: #e0e0e0; border-radius: 4px; height: 14px; overflow: hidden; }
+.stats-bar-fill { height: 100%; background: var(--verde); border-radius: 4px; transition: width 0.6s; }
+.stats-bar-val { font-size: 0.78rem; font-weight: 700; color: var(--verde); min-width: 28px; text-align: right; }
+.stats-loading { text-align: center; padding: 40px; color: #888; }
+.rodizio-tag { background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700; margin-left: 4px; }
+.critico-tag { background: #ffebee; color: #c62828; border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700; margin-left: 4px; }
+@media (max-width: 600px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-bar-label { min-width: 100px; max-width: 130px; }
+  #modal-stats { padding: 10px; }
+}
+
+.campo-bloqueado {
+  border-color: #ff9800 !important;
+  background: #fff8e1 !important;
+  cursor: not-allowed !important;
+}
+.campo-bloqueado-badge {
+  font-size: 0.75rem;
+  color: #e65100;
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-top: 3px;
+  display: block;
+}
+
+/* ---- MODAL DIRETÓRIO DE ATAS ---- */
+#modal-atas {
+  position: fixed; inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+.modal-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.modal-box {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  width: 90%; max-width: 620px;
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+.modal-header {
+  background: var(--verde);
+  color: white;
+  padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'EB Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.modal-close {
+  background: none; border: none; color: white;
+  font-size: 1.2rem; cursor: pointer; padding: 0 4px;
+}
+.modal-search { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; }
+.modal-search input {
+  width: 100%; padding: 9px 14px;
+  border: 2px solid var(--borda); border-radius: var(--radius);
+  font-size: 0.92rem; font-family: 'Inter', sans-serif;
+  background: var(--amarelo-campo);
+}
+.modal-search input:focus { outline: none; border-color: var(--verde); background: white; }
+.lista-atas { overflow-y: auto; flex: 1; }
+.ata-item {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ata-item:hover { background: var(--verde-bg); }
+.ata-item-data {
+  font-weight: 700; font-size: 0.95rem;
+  color: var(--verde-escuro);
+}
+.ata-item-info {
+  font-size: 0.82rem; color: #777; margin-top: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="church-emblem">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18L20 8.5v7L12 19.32 4 15.5v-7l8-4.32z"/></svg>
+      </div>
+      <h1>Ata Sacramental</h1>
+      <p>Ala Bougainville · Estaca Anápolis Brasil</p>
+    </div>
+
+    <label for="sel-usuario">Usuário</label>
+    <select id="sel-usuario">
+      <option value="">— Selecione seu cargo —</option>
+      <option value="Bispo">Bispo</option>
+      <option value="1º Conselheiro">1º Conselheiro</option>
+      <option value="2º Conselheiro">2º Conselheiro</option>
+      <option value="Secretário Executivo">Secretário Executivo</option>
+      <option value="Secretário da Ala">Secretário da Ala</option>
+    </select>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:0;">
+      <div>
+        <label for="inp-cod-estaca" style="margin-top:16px;">Código da Estaca</label>
+        <input type="text" id="inp-cod-estaca" placeholder="Código da Estaca" maxlength="10" inputmode="numeric">
+        <div class="sunday-picker-note">Estaca Anápolis Brasil</div>
+      </div>
+      <div>
+        <label for="inp-cod-ala" style="margin-top:16px;">Código da Ala</label>
+        <input type="text" id="inp-cod-ala" placeholder="Código da Ala" maxlength="10" inputmode="numeric">
+        <div class="sunday-picker-note">Ala Bougainville</div>
+      </div>
+    </div>
+
+    <button class="login-btn" onclick="fazerLogin()">Acessar Sistema</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ==================== TELA SELEÇÃO ==================== -->
+<div id="tela-selecao">
+  <div class="selecao-card">
+    <div class="selecao-logo">
+      <div class="church-emblem">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18L20 8.5v7L12 19.32 4 15.5v-7l8-4.32z"/></svg>
+      </div>
+      <h2>Ata Sacramental</h2>
+      <div class="usuario-info" id="sel-usuario-info">—</div>
+    </div>
+
+    <!-- Bloco: ata existente -->
+    <div class="selecao-bloco">
+      <div class="selecao-bloco-titulo">📋 Abrir ata existente</div>
+      <select id="sel-ata-inicio">
+        <option value="">— Selecione uma ata —</option>
+      </select>
+      <button class="btn-abrir-ata" onclick="abrirAtaSelecionada()">Abrir Ata Selecionada →</button>
+    </div>
+
+    <div class="selecao-divider">ou</div>
+
+    <!-- Bloco: nova ata -->
+    <div class="selecao-bloco">
+      <div class="selecao-bloco-titulo">✨ Criar nova ata</div>
+      <div class="nova-ata-date-wrap">
+        <label>Data do domingo:</label>
+        <input type="date" id="inp-data-nova-ata" onchange="validarDomingoSelecao()">
+        <div id="aviso-domingo-selecao" style="display:none;font-size:0.78rem;color:#c62828;margin-top:4px;">⚠ Selecione um domingo</div>
+      </div>
+      <button class="btn-nova-ata-selecao" onclick="criarNovaAtaSelecao()">+ Criar Nova Ata</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <div class="login-logo" style="margin:0;text-align:left;">
+        <div class="top-bar-logo">
+          Ata Sacramental
+          <span>Ala Bougainville · Estaca Anápolis Brasil</span>
+        </div>
+      </div>
+    </div>
+    <div class="top-bar-right">
+      <div class="usuario-badge" id="badge-usuario">—</div>
+      <span class="status-salvamento" id="status-salvo">Pronto</span>
+      <button class="btn-sair" onclick="abrirPainelAtas()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);">📚 Diretório</button>
+      <button class="btn-sair" onclick="abrirEstatisticas()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);">📊 Estatísticas</button>
+      <button class="btn-sair" onclick="imprimirAta()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);">🖨️ Imprimir / PDF</button>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Cabeçalho para impressão -->
+    <div class="print-header" id="print-header">
+      <h2>ATA DA REUNIÃO SACRAMENTAL</h2>
+      <p id="print-info"></p>
+    </div>
+
+    <!-- Data fixa + link diretório -->
+    <!-- select oculto mantido para compatibilidade interna -->
+    <select id="sel-ata-existente" style="display:none;"></select>
+    <input type="date" id="inp-data-reuniao" style="display:none;">
+    <div class="ata-header-bar" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:0.83rem;font-weight:600;color:var(--verde-escuro);">📅 Reunião:</span>
+        <span class="data-ata-badge" id="data-ata-exibida">—</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="status-ata-nova" style="display:none;font-size:0.78rem;background:#e8f5e9;color:#2e7d32;border-radius:12px;padding:3px 10px;border:1px solid #c8e6c9;">✨ Nova ata</span>
+        <button class="btn-sair" onclick="voltarParaSelecao()" style="background:white;border:2px solid var(--verde);color:var(--verde);padding:6px 14px;font-size:0.83rem;cursor:pointer;border-radius:var(--radius);font-weight:600;">+ Nova Ata</button>
+        <button class="btn-sair" onclick="abrirPainelAtas()" style="background:var(--verde);border:none;color:white;padding:7px 14px;font-size:0.83rem;cursor:pointer;border-radius:var(--radius);">📚 Trocar Ata</button>
+      </div>
+    </div>
+
+    <!-- ===== PRELÚDIO / ABERTURA ===== -->
+    <div class="section-card">
+      <div class="section-header"><span class="icon">🎵</span> PRELÚDIO | ABERTURA</div>
+      <div class="section-body">
+        <div class="field-row">
+          <label>Presidido</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="presidido" maxlength="70" placeholder="Nome do presidente..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-presidido"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Dirigido</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="dirigido" maxlength="70" placeholder="Nome de quem dirige..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-dirigido"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Visitantes</label>
+          <div class="field-input">
+            <div class="visitantes-group" id="grupo-visitantes-nomes"></div>
+            <button class="btn-add-row" id="btn-add-visitante" onclick="addVisitante()" style="margin-top:4px;">+ Adicionar visitante</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Anúncios e Reconhecimento</label>
+          <div class="field-input">
+            <textarea id="anuncios" maxlength="5000" placeholder="Anúncios e reconhecimentos da ala e estaca..."
+              oninput="autoResize(this)" style="min-height:80px;overflow:hidden;resize:none;"></textarea>
+            <div class="print-text-proxy" id="proxy-anuncios" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Hino Abertura</label>
+          <div class="field-input hino-wrapper">
+            <input type="text" id="hino-abertura" placeholder="Nº ou nome do hino..." autocomplete="off" oninput="showHinos(this)" onblur="hideHinos(this,300)">
+            <div class="hino-dropdown" id="drop-hino-abertura"></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field-row" style="margin-bottom:0;">
+            <label>Oração</label>
+            <div class="field-input membro-wrapper">
+              <input type="text" id="oracao-abertura" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+              <div class="membro-dropdown" id="drop-oracao-abertura"></div>
+            </div>
+          </div>
+          <div class="field-row" style="margin-bottom:0;">
+            <label>Regente</label>
+            <div class="field-input membro-wrapper">
+              <input type="text" id="regente" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+              <div class="membro-dropdown" id="drop-regente"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:12px;">
+          <label>Pianista</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="pianista" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-pianista"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ASSUNTOS DA ALA E ESTACA ===== -->
+    <div class="section-card">
+      <div class="section-header"><span class="icon">📣</span> ASSUNTOS DA ALA E ESTACA</div>
+      <div class="section-body">
+
+        <!-- Desobrigações -->
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:6px;">Desobrigações</p>
+        <div class="instrucao">
+          <strong>"[Nome] está sendo desobrigado(a) como [cargo].</strong> Os que desejarem manifestar agradecimento por seus serviços prestados podem fazê-lo levantando a mão."
+        </div>
+        <div class="repeatable-group" id="grupo-desobrigacoes"></div>
+        <button class="btn-add-row" onclick="addRow('desobrigacoes')">+ Adicionar Desobrigação</button>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Apoios -->
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:6px;">Apoios</p>
+        <div class="instrucao">
+          <strong>"[Nome] foi chamado(a) para servir como [cargo].</strong> Os que forem a favor, manifestem-se levantando a mão. [Pequena pausa]. Os que se opuserem, se houver, manifestem-se. [Pequena pausa]"
+        </div>
+        <div class="repeatable-group" id="grupo-apoios"></div>
+        <button class="btn-add-row" onclick="addRow('apoios')">+ Adicionar Apoio</button>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Ordenação Sacerdócio Aarônico -->
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:6px;">Ordenação ao Sacerdócio Aarônico</p>
+        <div class="instrucao">
+          Pedir ao irmão para ficar de pé. <strong>"É proposto que o irmão [Nome] receba o Sacerdócio Aarônico e seja ordenado ao ofício de [nome ofício].</strong> Os que forem a favor, manifestem-se levantando a mão. [Pequena pausa]. Os que se opuserem, se houver, manifestem-se. [Pequena pausa]"
+        </div>
+        <div class="repeatable-group" id="grupo-ordenacoes"></div>
+        <button class="btn-add-row" onclick="addRow('ordenacoes')">+ Adicionar Ordenação</button>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Confirmação de Conversos -->
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:6px;">Confirmação de Conversos</p>
+        <div class="instrucao">
+          <strong>Reconhecimento de novos membros da ala:</strong> Quem estiver dirigindo deverá pedir à congregação que, erguendo a mão, apoie o membro converso como o membro mais novo da Ala.
+        </div>
+        <div class="repeatable-group" id="grupo-confirmacoes"></div>
+        <button class="btn-add-row" onclick="addRow('confirmacoes')">+ Adicionar Confirmação</button>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Dar Nome e Abençoar Crianças -->
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:6px;">Dar Nome e Abençoar Crianças <small style="font-weight:400;color:#888;">(1º domingo do mês)</small></p>
+        <div class="repeatable-group" id="grupo-criancas"></div>
+        <button class="btn-add-row" onclick="addRow('criancas')">+ Adicionar Criança</button>
+
+      </div>
+    </div>
+
+    <!-- ===== BÊNÇÃO E DISTRIBUIÇÃO DO SACRAMENTO ===== -->
+    <div class="section-card">
+      <div class="section-header"><span class="icon">🍞</span> BÊNÇÃO E DISTRIBUIÇÃO DO SACRAMENTO</div>
+      <div class="section-body">
+        <div class="field-row">
+          <label>Hino Sacramental</label>
+          <div class="field-input hino-wrapper">
+            <input type="text" id="hino-sacramental" placeholder="Nº ou nome do hino..." autocomplete="off" oninput="showHinos(this)" onblur="hideHinos(this,300)">
+            <div class="hino-dropdown" id="drop-hino-sacramental"></div>
+          </div>
+        </div>
+
+        <p style="font-weight:600;color:var(--verde-escuro);margin:16px 0 6px;">Oração do Pão</p>
+        <div class="oracao-box">
+          Ó Deus, Pai Eterno, nós te rogamos em nome de teu filho, Jesus Cristo, que abenções e santifiques este pão para as almas de todos os que partilharem dele, para que o comam em lembrança do corpo de teu filho e testifiquem a ti, Ó Deus, Pai Eterno, que desejam tomar sobre si o nome de teu filho e recordá-lo sempre e guardar os mandamentos que ele lhes deu, para que possam ter sempre consigo o seu espírito. Amém.
+        </div>
+
+        <p style="font-weight:600;color:var(--verde-escuro);margin:16px 0 6px;">Oração da Água</p>
+        <div class="oracao-box">
+          Ó Deus, Pai Eterno, nós te rogamos em nome de teu filho, Jesus Cristo, que abenções e santifiques esta água, para as almas de todos os que beberem dela, para que o façam em lembrança do sangue de teu filho, que por eles foi derramado, e testifiquem a ti, Ó Deus, Pai Eterno, que sempre se lembram dele, para que possam ter consigo o seu espírito. Amém.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ENCERRAMENTO ===== -->
+    <div class="section-card">
+      <div class="section-header"><span class="icon">🎶</span> ENCERRAMENTO</div>
+      <div class="section-body">
+
+        <!-- Reunião de Jejum e Testemunho -->
+        <div id="wrap-testemunhos">
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:4px;">Reunião de Jejum e Testemunho <small style="font-weight:400;color:#888;">[1º domingo do mês]</small></p>
+        <div class="instrucao">Anotar o nome dos membros que testemunharam durante a reunião.</div>
+        <div class="testemunhos-area">
+          <textarea id="testemunhos-jejum" placeholder="Nomes dos membros que testemunharam (um por linha)..." maxlength="5000" oninput="autoResize(this)" style="min-height:80px;overflow:hidden;resize:none;"></textarea>
+          <div class="print-text-proxy" id="proxy-testemunhos-jejum" style="display:none;"></div>
+        </div>
+        </div>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:10px;">Oradores (2º ao 5º domingo)</p>
+
+        <div class="field-row">
+          <label>1º Orador</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="orador1" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-orador1"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>2º Orador</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="orador2" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-orador2"></div>
+          </div>
+        </div>
+
+        <!-- Hino intermediário entre 2º e 3º orador -->
+        <div class="field-row">
+          <label>Hino Intermediário</label>
+          <div class="field-input hino-wrapper">
+            <input type="text" id="hino-intermediario" placeholder="Nº ou nome do hino..." autocomplete="off" oninput="showHinos(this)" onblur="hideHinos(this,300)">
+            <div class="hino-dropdown" id="drop-hino-intermediario"></div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>3º Orador</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="orador3" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-orador3"></div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>Hino Encerramento</label>
+          <div class="field-input hino-wrapper">
+            <input type="text" id="hino-encerramento" placeholder="Nº ou nome do hino..." autocomplete="off" oninput="showHinos(this)" onblur="hideHinos(this,300)">
+            <div class="hino-dropdown" id="drop-hino-encerramento"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label>Oração Final</label>
+          <div class="field-input membro-wrapper">
+            <input type="text" id="oracao-encerramento" maxlength="70" placeholder="Nome..." autocomplete="off" oninput="showMembros(this)" onblur="hideMembros(this,300)">
+            <div class="membro-dropdown" id="drop-oracao-encerramento"></div>
+          </div>
+        </div>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Frequência -->
+        <div id="wrap-frequencia">
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:12px;">📊 Frequência</p>
+        <div class="freq-row">
+          <div class="freq-item">
+            <label>Visitantes</label>
+            <input type="number" id="visitantes" min="0" max="9999" placeholder="0">
+          </div>
+          <div class="freq-item">
+            <label>Homens</label>
+            <input type="number" id="homens" min="0" max="9999" placeholder="0">
+          </div>
+          <div class="freq-item">
+            <label>Frequência Total</label>
+            <input type="number" id="frequencia-total" min="0" max="9999" placeholder="0">
+          </div>
+        </div>
+        </div>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+
+        <!-- Irmãos Faltantes -->
+        <div id="wrap-faltantes">
+        <p style="font-weight:700;color:var(--verde-escuro);margin-bottom:8px;">👤 Irmãos Faltantes</p>
+        <div id="grupo-faltantes"></div>
+        <button class="btn-add-row" onclick="addFaltante()">+ Adicionar faltante</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log de Alterações -->
+    <div class="log-toggle">
+      <button onclick="toggleLog()">📋 Histórico de Alterações</button>
+    </div>
+    <div class="log-panel" id="log-panel">
+      <div id="log-entries"><em style="color:#aaa;font-size:0.82rem;">Nenhuma alteração registrada.</em></div>
+    </div>
+
+  </div><!-- /container -->
+</div><!-- /app -->
+
+<!-- Modal Estatísticas -->
+<div id="modal-stats">
+  <div class="stats-overlay" onclick="fecharEstatisticas()"></div>
+  <div class="stats-box">
+    <div class="stats-header">
+      <span>📊 Painel de Estatísticas — Ala Bougainville</span>
+      <button onclick="fecharEstatisticas()" class="modal-close" style="background:none;border:none;color:white;font-size:1.3rem;cursor:pointer;">✕</button>
+    </div>
+    <div class="stats-filters">
+      <label>Período:</label>
+      <select id="stats-periodo">
+        <option value="mes">Mês atual</option>
+        <option value="trimestre" selected>Trimestre</option>
+        <option value="semestre">Semestre</option>
+        <option value="anual">Anual (12 meses)</option>
+      </select>
+      <label>Organização:</label>
+      <select id="stats-org-filtro">
+        <option value="">Todas</option>
+        <option>Quórum de Élderes</option>
+        <option>Sociedade de Socorro</option>
+        <option>Rapazes</option>
+        <option>Moças</option>
+        <option>JAS</option>
+        <option>Primária</option>
+      </select>
+      <button class="btn-gerar-stats" onclick="gerarEstatisticas()">🔄 Gerar Relatório</button>
+    </div>
+    <div class="stats-body" id="stats-body">
+      <div class="stats-loading">
+        <div class="loading-spinner"></div>
+        Selecione o período e clique em Gerar Relatório
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO SUPABASE — atualize com seus dados
+// ============================================================
+const SUPABASE_URL = 'https://SEU_PROJECT_ID.supabase.co'; // ⚠️ Substitua pelo URL do seu projeto Supabase
+const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI'; // ⚠️ Substitua pela chave anon do seu projeto Supabase
+
+const MAX_SESSOES = 5;
+let usuarioAtual = null, tokenSessao = null, ataId = null;
+let saveTimeout = null;
+let pollingInterval = null, bloqueioInterval = null;
+let ultimoTimestampAta = null;
+// Rastrear valores anteriores para log por campo
+let valoresAnteriores = {};
+
+// ============================================================
+// DADOS: HINOS
+// ============================================================
+const HINOS = [{"num":"1001","name":"Ó Senhor de toda bênção"},{"num":"1002","name":"Quando o Salvador voltar"},{"num":"1003","name":"Minha alma tem paz"},{"num":"1004","name":"Quero andar com Cristo"},{"num":"1005","name":"Do passarinho cuida"},{"num":"1006","name":"Pense na canção"},{"num":"1007","name":"Partido o pão"},{"num":"1008","name":"Pão do Céu, Água Viva"},{"num":"1009","name":"Getsêmani"},{"num":"1010","name":"Sublime graça"},{"num":"1011","name":"De mãos dadas em união"},{"num":"1012","name":"A qualquer hora ou lugar"},{"num":"1013","name":"O amor de Deus"},{"num":"1014","name":"O meu Pastor vai me amparar"},{"num":"1015","name":"O profundo amor de Cristo"},{"num":"1016","name":"Olhai as mãos do Redentor"},{"num":"1017","name":"Este é o Cristo"},{"num":"1018","name":"Vem, ó Jesus! Vem!"},{"num":"1019","name":"Desejo me tornar como Cristo"},{"num":"1020","name":"O Salvador ternamente nos chama"},{"num":"1021","name":"Que Cristo me ama eu sei"},{"num":"1022","name":"Fé a cada passo"},{"num":"1023","name":"Firme nas promessas"},{"num":"1024","name":"Tenho fé em Jesus, meu Senhor"},{"num":"1025","name":"Consagro meu coração em retidão"},{"num":"1026","name":"Lugares santos"},{"num":"1027","name":"Ao virmos, hoje, adorar"},{"num":"1028","name":"Tenho uma luz em mim"},{"num":"1029","name":"Muitas bênçãos recebo"},{"num":"1030","name":"Tão perto ao orar"},{"num":"1031","name":"Ó, vinde, ouvi a voz divina"},{"num":"1032","name":"Buscai a Cristo"},{"num":"1033","name":"Oh, que grande alegria é servir"},{"num":"1034","name":"Pioneiros como eu"},{"num":"1035","name":"Neste Dia do Senhor"},{"num":"1036","name":"O Livro de Mórmon vou ler"},{"num":"1037","name":"Vou viver para a Deus servir"},{"num":"1038","name":"O meu Senhor é meu Pastor"},{"num":"1039","name":"Porque"},{"num":"1040","name":"Sua voz a soar"},{"num":"1041","name":"Meu coração é Teu, Jesus"},{"num":"1042","name":"Bondoso Deus, que nos conduz"},{"num":"1043","name":"Faz-nos lembrar"},{"num":"1044","name":"Cristo a todos ministrou"},{"num":"1045","name":"\"Vinde a Mim\", diz Jesus"},{"num":"1046","name":"Há no céu muitas estrelas"},{"num":"1047","name":"Ele me conhece bem"},{"num":"1048","name":"A Ti oramos, Pai Celeste"},{"num":"1049","name":"Posso orar como Joseph orou"},{"num":"1050","name":"Oh, que estejas junto a mim"},{"num":"1051","name":"Senhor, oh, que dia bom!"},{"num":"1052","name":"Com eterna alegria e paz"},{"num":"1053","name":"Meus convênios"},{"num":"1054","name":"Quando eu for batizado"},{"num":"1055","name":"O Espírito vem testificar"},{"num":"1056","name":"Elias e a mansa voz"},{"num":"1057","name":"Meu pastor é Jesus Cristo"},{"num":"1058","name":"Na noite, és minha canção"},{"num":"1059","name":"O mundo Deus criou"},{"num":"1060","name":"Uma arca hoje eu construirei"},{"num":"1061","name":"Nosso lar tem amor"},{"num":"1062","name":"Que meu jejum venhas aceitar"},{"num":"1201","name":"Eis a Páscoa do Senhor"},{"num":"1202","name":"O menino Jesus nasceu"},{"num":"1203","name":"Quem é o menino?"},{"num":"1204","name":"Estrela brilhante e bela"},{"num":"1205","name":"Na Páscoa do Senhor"},{"num":"1206","name":"Você viu?"},{"num":"1207","name":"Noite de paz"},{"num":"1208","name":"Ao mundo proclamai"},{"num":"1209","name":"Bebezinho no presépio"},{"num":"1210","name":"Os jardins"},{"num":"1","name":"A Alva Rompe"},{"num":"2","name":"Tal Como um Facho"},{"num":"3","name":"Alegres Cantemos"},{"num":"4","name":"No Monte a Bandeira"},{"num":"5","name":"Israel, Jesus Te Chama"},{"num":"6","name":"Um Anjo Lá do Céu"},{"num":"7","name":"O Que Vimos Lá nos Céus"},{"num":"8","name":"Oração pelo Profeta"},{"num":"9","name":"Graças Damos, Ó Deus, Por um Profeta"},{"num":"10","name":"Vinde ao Profeta Escutar"},{"num":"11","name":"Abençoa Nosso Profeta"},{"num":"12","name":"Que Manhã Maravilhosa!"},{"num":"13","name":"Rejubilai-vos, Ó Nações"},{"num":"14","name":"Hoje, ao Profeta Louvemos"},{"num":"15","name":"Um Pobre e Aflito Viajor"},{"num":"16","name":"Ó Montanhas Mil"},{"num":"17","name":"Por Teus Dons"},{"num":"18","name":"Vede, Ó Santos"},{"num":"19","name":"Sereno Finda o Dia"},{"num":"20","name":"Vinde, Ó Santos"},{"num":"21","name":"Ao Salvador Louvemos"},{"num":"22","name":"Em Glória Resplandesce"},{"num":"23","name":"Lá nos Cumes"},{"num":"24","name":"Vem, Ó Dia Prometido"},{"num":"25","name":"Bela Sião"},{"num":"26","name":"O Mundo Desperta"},{"num":"27","name":"Vinde, Ó Filhos do Senhor"},{"num":"28","name":"Ó Vem, Supremo Rei"},{"num":"29","name":"Ó Criaturas do Senhor"},{"num":"30","name":"Ó Santos, Que na Terra Habitais"},{"num":"31","name":"Com Braço Forte"},{"num":"32","name":"Castelo Forte"},{"num":"33","name":"Glória a Deus Cantai"},{"num":"34","name":"Louvai a Deus"},{"num":"35","name":"A Deus, Senhor e Rei"},{"num":"36","name":"Deus É Amor"},{"num":"37","name":"O Senhor Meu Pastor É"},{"num":"38","name":"Que Toda Honra e Glória"},{"num":"39","name":"Corações, Pois, Exultai"},{"num":"40","name":"Jeová, Sê Nosso Guia"},{"num":"41","name":"Firmes Segui"},{"num":"42","name":"Que Firme Alicerce"},{"num":"43","name":"Grandioso És Tu"},{"num":"44","name":"Jesus, Minha Luz"},{"num":"45","name":"Ó Vós Que Amais ao Senhor"},{"num":"46","name":"Nossas Vozes Elevemos"},{"num":"47","name":"Deus nos Rege com Amor"},{"num":"48","name":"Ó Pai Bendito"},{"num":"49","name":"Pela Beleza do Mundo"},{"num":"50","name":"Cantando Louvamos"},{"num":"51","name":"Oração de Graças"},{"num":"52","name":"Vinde, Ó Povos, Graças Dar"},{"num":"53","name":"Se Tenho Fé"},{"num":"54","name":"Doce É o Trabalho"},{"num":"55","name":"Santo! Santo! Santo!"},{"num":"56","name":"Os Céus Proclamam"},{"num":"57","name":"Conta as Bênçãos"},{"num":"58","name":"Ao Deus de Abraão Louvai"},{"num":"59","name":"Louvai o Eterno Criador"},{"num":"60","name":"Brilha, Meiga Luz"},{"num":"61","name":"Careço de Jesus"},{"num":"62","name":"Mais Perto Quero Estar"},{"num":"63","name":"Guia-me a Ti"},{"num":"64","name":"Ó Pai Celeste"},{"num":"65","name":"Jesus Cristo É Meu Senhor"},{"num":"66","name":"Creio em Cristo"},{"num":"67","name":"Vive o Redentor"},{"num":"68","name":"Vinde a Mim"},{"num":"69","name":"Vinde a Cristo"},{"num":"70","name":"Eu Sei Que Vive Meu Senhor"},{"num":"71","name":"Testemunho"},{"num":"72","name":"Mestre, o Mar Se Revolta"},{"num":"73","name":"Onde Encontrar a Paz?"},{"num":"74","name":"Sê Humilde"},{"num":"75","name":"Mais Vontade Dá-me"},{"num":"76","name":"Rocha Eterna"},{"num":"77","name":"A Luz de Deus"},{"num":"78","name":"Embora Cheios de Pesar"},{"num":"79","name":"Ó Doce, Grata Oração"},{"num":"80","name":"Santo Espírito de Deus"},{"num":"81","name":"Secreta Oração"},{"num":"82","name":"Eis-nos Agora Aqui"},{"num":"83","name":"Com Fervor Fizeste a Prece?"},{"num":"84","name":"Só por em Ti, Jesus, Pensar"},{"num":"85","name":"Deus Vos Guarde"},{"num":"86","name":"Nós Pedimos-te, Senhor"},{"num":"87","name":"Ó Bondoso Pai Eterno"},{"num":"88","name":"Dá-nos, Tu, ó Pai Bondoso"},{"num":"89","name":"Ao Partir Cantemos"},{"num":"90","name":"Teu Santo Espírito, Senhor"},{"num":"91","name":"Qual Orvalho Que Cintila"},{"num":"92","name":"Vai Fugindo o Dia"},{"num":"93","name":"Suavemente a Noite Cai"},{"num":"94","name":"Oração para a Noite"},{"num":"95","name":"Eis-nos, Hoje, a Teus Pés"},{"num":"96","name":"É Tarde, a Noite Logo Vem"},{"num":"97","name":"Comigo Habita"},{"num":"98","name":"Ó Deus, Senhor Eterno"},{"num":"99","name":"Ao Partilhar de Teu Amor"},{"num":"100","name":"Entoai a Deus Louvor"},{"num":"101","name":"Deus, Escuta-nos Orar"},{"num":"102","name":"Nossa Humilde Prece Atende"},{"num":"103","name":"Enquanto unidos em Amor"},{"num":"104","name":"Quão Grato É Cantar Louvor"},{"num":"105","name":"Cantemos Todos a Jesus"},{"num":"106","name":"Jesus de Nazaré, Mestre e Rei"},{"num":"107","name":"Deus Tal Amor por Nós Mostrou"},{"num":"108","name":"Eis-nos à Mesa do Senhor"},{"num":"109","name":"Em uma Cruz Jesus Morreu"},{"num":"110","name":"Vede, Morreu o Redentor"},{"num":"111","name":"Lembrando a Morte de Jesus"},{"num":"112","name":"Assombro me Causa"},{"num":"113","name":"No Monte do Calvário"},{"num":"114","name":"Da Corte Celestial"},{"num":"115","name":"Tão Humilde ao Nascer"},{"num":"116","name":"Sobre o Calvário"},{"num":"117","name":"Com Irmãos Nós Reunidos"},{"num":"118","name":"Manhã da Ressurreição"},{"num":"119","name":"Cristo É Já Ressuscitado"},{"num":"120","name":"Cristo Já Ressuscitou"},{"num":"121","name":"Mundo Feliz, Nasceu Jesus"},{"num":"122","name":"Erguei-vos Cantando"},{"num":"123","name":"Lá na Judéia, Onde Cristo Nasceu"},{"num":"124","name":"Anjos Descem a Cantar"},{"num":"125","name":"Ouvi os Sinos do Natal"},{"num":"126","name":"Noite Feliz"},{"num":"127","name":"Jesus num Presépio"},{"num":"128","name":"Na Bela Noite Se Ouviu"},{"num":"129","name":"Pequena Vila de Belém"},{"num":"130","name":"No Céu Desponta Nova Luz"},{"num":"131","name":"No Dia de Natal"},{"num":"132","name":"Eis dos Anjos a Harmonia"},{"num":"133","name":"Quando o Anjo Proclamou"},{"num":"134","name":"Sim, Eu Te Seguirei"},{"num":"135","name":"Eu Devo Partilhar"},{"num":"136","name":"Neste mundo"},{"num":"137","name":"Oh! Falemos Palavras Amáveis"},{"num":"138","name":"Não Deixeis Palavras Duras"},{"num":"139","name":"Deus É Consolador Sem Par"},{"num":"140","name":"Ama o Pastor Seu Rebanho"},{"num":"141","name":"Trabalhemos Hoje"},{"num":"142","name":"Nossa Lei É Trabalhar"},{"num":"143","name":"Pai, Inspira-me ao Ensinar"},{"num":"144","name":"Mãos ao Trabalho"},{"num":"145","name":"Sempre Que Alguém Nos Faz o Bem"},{"num":"146","name":"Se a Vida É Penosa"},{"num":"147","name":"Faze o Bem"},{"num":"148","name":"Faze o Bem, Escolhendo o Que É Certo"},{"num":"149","name":"A Alma É Livre"},{"num":"150","name":"Quem Segue ao Senhor?"},{"num":"151","name":"Minha Alma Hoje Tem a luz"},{"num":"152","name":"Prolongue os Bons Momentos"},{"num":"153","name":"Deixa a Luz do Sol Entrar"},{"num":"154","name":"Enquanto o Sol Brilha"},{"num":"155","name":"Luz Espalhai"},{"num":"156","name":"Agora Não, mas Logo Mais"},{"num":"157","name":"Amor que Cristo Demonstrou"},{"num":"158","name":"Tu Jesus, Ó Rocha Eterna"},{"num":"159","name":"À Glória Nós Iremos"},{"num":"160","name":"Somos os Soldados"},{"num":"161","name":"As Hostes do Eterno"},{"num":"162","name":"Com Valor Marchemos"},{"num":"163","name":"Ide por Todo o Mundo"},{"num":"164","name":"De Um a Outro Pólo"},{"num":"165","name":"Semeando"},{"num":"166","name":"Chamados a Servir"},{"num":"167","name":"Aonde Mandares Irei"},{"num":"168","name":"Povos da Terra, Vinde, Escutai!"},{"num":"169","name":"Eis os Teus Filhos, Ó Senhor"},{"num":"170","name":"Avante, ao Mundo Proclamai"},{"num":"171","name":"A Verdade o Que É?"},{"num":"172","name":"A Verdade É Nosso Guia"},{"num":"173","name":"Ao Raiar o Novo Dia"},{"num":"174","name":"Sê Bem-vindo, Dia Santo"},{"num":"175","name":"Do Pó Nos Fala uma Voz"},{"num":"176","name":"Estudando as Escrituras"},{"num":"177","name":"Ó Meu Pai"},{"num":"178","name":"Ó Quão Majestosa É a Obra de Deus"},{"num":"179","name":"Ó Jeová, Senhor do Céu"},{"num":"180","name":"Já Refulge a Glória Eterna"},{"num":"181","name":"O Fim Se Aproxima"},{"num":"182","name":"Juventude da Promessa"},{"num":"183","name":"Deve Sião Fugir à Luta?"},{"num":"184","name":"Constantes Qual Firmes Montanhas"},{"num":"185","name":"Quão Belos São"},{"num":"186","name":"Levantai-vos, Ide ao Templo"},{"num":"187","name":"Nós Dedicamos Esta Casa"},{"num":"188","name":"Com Amor no Lar"},{"num":"189","name":"Pode o Lar Ser Como o Céu"},{"num":"190","name":"Os Teus Filhos, Pai Celeste"},{"num":"191","name":"As Famílias Poderão Ser Eternas"},{"num":"192","name":"Ó Crianças, Deus Vos Ama"},{"num":"193","name":"Sou um Filho de Deus"},{"num":"194","name":"Guarda os Mandamentos"},{"num":"195","name":"Eu Sei que Deus Vive"},{"num":"196","name":"Nas Montanhas de Sião"},{"num":"197","name":"Amai-vos Uns aos Outros"},{"num":"198","name":"Quando Vejo o Sol Raiar"},{"num":"199","name":"Faz-me Andar Só na Luz"},{"num":"200","name":"Irmãs em Sião (Vozes Femininas)"},{"num":"201","name":"Ó Filhos do Senhor (Vozes Masculinas)"},{"num":"202","name":"Brilham Raios de Clemência (Vozes Masculinas)"},{"num":"203","name":"Ó Élderes de Israel"},{"num":"204","name":"Ó Vós, Que Sois Chamados"}];
+
+// ============================================================
+// DADOS: MEMBROS
+// ============================================================
+let MEMBROS = [];
+// A lista de membros é carregada exclusivamente do banco de dados (membros_extras).
+// Não há lista local pré-definida para preservar privacidade dos dados pessoais.
+
+
+// ============================================================
+// API SUPABASE
+// ============================================================
+async function sbFetch(path, method='GET', body=null) {
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, opts);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ============================================================
+// LOGIN / SESSÃO
+// ============================================================
+function gerarToken() {
+  return Math.random().toString(36).substr(2) + Date.now().toString(36);
+}
+
+async function fazerLogin() {
+  const usuario  = document.getElementById('sel-usuario').value;
+  const codEstaca = document.getElementById('inp-cod-estaca').value.trim();
+  const codAla    = document.getElementById('inp-cod-ala').value.trim();
+
+  if (!usuario)   { mostrarErroLogin('Selecione seu cargo.'); return; }
+  if (!codEstaca) { mostrarErroLogin('Informe o código da Estaca.'); return; }
+  if (!codAla)    { mostrarErroLogin('Informe o código da Ala.'); return; }
+  if (codEstaca.replace(/\s/g,'') !== 'COD_ESTACA') { mostrarErroLogin('Código da Estaca inválido.'); return; } // ⚠️ Substitua COD_ESTACA pelo código real
+  if (codAla.replace(/\s/g,'')    !== 'COD_ALA') { mostrarErroLogin('Código da Ala inválido.'); return; } // ⚠️ Substitua COD_ALA pelo código real
+
+  mostrarLoading('Verificando acesso...');
+  try {
+    // Limpar sessões expiradas (> 30 min)
+    const limite = new Date(Date.now() - 30*60*1000).toISOString();
+    await sbFetch(`sessoes_ativas?ultima_atividade=lt.${limite}`, 'DELETE').catch(()=>{});
+
+    const sessoes = await sbFetch('sessoes_ativas?select=usuario,token,ultima_atividade');
+    const agora = Date.now();
+    const validas = sessoes.filter(s => (agora - new Date(s.ultima_atividade).getTime()) < 30*60*1000);
+
+    const jaLogado = validas.find(s => s.usuario === usuario);
+    if (jaLogado) {
+      esconderLoading();
+      mostrarErroLogin(`"${usuario}" já está ativo. Se foi você, clique em "Forçar entrada".`);
+      mostrarBotaoForca(usuario); return;
+    }
+    if (validas.length >= MAX_SESSOES) {
+      esconderLoading();
+      mostrarErroLogin(`Limite de ${MAX_SESSOES} usuários simultâneos atingido.`); return;
+    }
+
+    await sbFetch(`sessoes_ativas?usuario=eq.${encodeURIComponent(usuario)}`, 'DELETE').catch(()=>{});
+    const token = gerarToken();
+    await sbFetch('sessoes_ativas', 'POST', { usuario, token, ultima_atividade: new Date().toISOString() });
+
+    usuarioAtual = usuario; tokenSessao = token;
+    localStorage.setItem('ata_usuario', usuario);
+    localStorage.setItem('ata_token', token);
+    esconderLoading(); iniciarApp();
+  } catch(e) {
+    esconderLoading();
+    mostrarErroLogin('Erro ao conectar. Verifique a configuração do Supabase.');
+    console.error(e);
+  }
+}
+
+function mostrarErroLogin(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function mostrarBotaoForca(usuario) {
+  if (document.getElementById('btn-forca')) return;
+  const btn = document.createElement('button');
+  btn.id = 'btn-forca';
+  btn.textContent = '⚠️ Forçar minha entrada';
+  btn.style.cssText = 'width:100%;margin-top:10px;padding:10px;background:#e65100;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;';
+  btn.onclick = () => forcarEntrada(usuario);
+  document.getElementById('login-error').after(btn);
+}
+
+async function forcarEntrada(usuario) {
+  mostrarLoading('Forçando entrada...');
+  try {
+    await sbFetch(`sessoes_ativas?usuario=eq.${encodeURIComponent(usuario)}`, 'DELETE');
+    document.getElementById('btn-forca')?.remove();
+    document.getElementById('login-error').style.display = 'none';
+    esconderLoading();
+    await fazerLogin();
+  } catch(e) { esconderLoading(); mostrarErroLogin('Erro ao forçar entrada.'); }
+}
+
+async function sair() {
+  if (tokenSessao) {
+    try { await sbFetch(`sessoes_ativas?token=eq.${tokenSessao}`, 'DELETE'); } catch(e) {}
+  }
+  // Liberar todos os bloqueios deste usuário
+  if (ataId) await sbFetch(`campos_em_edicao?usuario=eq.${encodeURIComponent(usuarioAtual)}&ata_id=eq.${ataId}`, 'DELETE').catch(()=>{});
+
+  usuarioAtual = null; tokenSessao = null; ataId = null;
+  clearInterval(pollingInterval); clearInterval(bloqueioInterval);
+  localStorage.removeItem('ata_usuario'); localStorage.removeItem('ata_token'); localStorage.removeItem('ata_id_ativo');
+  document.getElementById('btn-forca')?.remove();
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ============================================================
+// HEARTBEAT
+// ============================================================
+function iniciarHeartbeat() {
+  setInterval(async () => {
+    if (!tokenSessao) return;
+    try { await sbFetch(`sessoes_ativas?token=eq.${tokenSessao}`, 'PATCH', { ultima_atividade: new Date().toISOString() }); } catch(e) {}
+  }, 30000);
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && tokenSessao) {
+      try { await sbFetch(`sessoes_ativas?token=eq.${tokenSessao}`, 'PATCH', { ultima_atividade: new Date().toISOString() }); } catch(e) {}
+    }
+  });
+
+  let ultimaInteracao = 0;
+  ['click','keydown','touchstart','scroll'].forEach(ev => {
+    document.addEventListener(ev, async () => {
+      const agora = Date.now();
+      if (agora - ultimaInteracao > 60000 && tokenSessao) {
+        ultimaInteracao = agora;
+        try { await sbFetch(`sessoes_ativas?token=eq.${tokenSessao}`, 'PATCH', { ultima_atividade: new Date().toISOString() }); } catch(e) {}
+      }
+    }, { passive: true });
+  });
+}
+
+// ============================================================
+// INICIAR APP — mostra tela de seleção de ata primeiro
+// ============================================================
+async function iniciarApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('badge-usuario').textContent = '👤 ' + usuarioAtual;
+  document.getElementById('sel-usuario-info').textContent = `Logado como: ${usuarioAtual}`;
+
+  iniciarHeartbeat();
+  await carregarMembrosExtras();
+  await carregarListaAtas();
+  inicializarGruposRepetitivos();
+  inicializarVisitantes();
+  configurarAutoSave();
+  configurarBloqueiosCampos();
+  iniciarPolling();
+
+  // Preencher select da tela de seleção
+  const atas = await sbFetch('atas?select=id,data_reuniao,presidido&order=data_reuniao.desc').catch(()=>[]);
+  const sel = document.getElementById('sel-ata-inicio');
+  sel.innerHTML = '<option value="">— Selecione uma ata —</option>';
+  atas.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = formatarDataBr(a.data_reuniao) + (a.presidido ? ' · ' + a.presidido : '');
+    sel.appendChild(opt);
+  });
+
+  // Data padrão (próximo domingo)
+  const hoje = new Date();
+  const diff = (7 - hoje.getDay()) % 7;
+  const dom = new Date(hoje); dom.setDate(hoje.getDate() + (diff===0?0:diff));
+  document.getElementById('inp-data-nova-ata').value = dom.toISOString().split('T')[0];
+
+  document.getElementById('tela-selecao').style.display = 'flex';
+}
+
+function validarDomingoSelecao() {
+  const inp = document.getElementById('inp-data-nova-ata');
+  const aviso = document.getElementById('aviso-domingo-selecao');
+  if (!inp.value) return;
+  const [y,m,d] = inp.value.split('-').map(Number);
+  const dt = new Date(y,m-1,d);
+  if (dt.getDay() !== 0) {
+    const diff2 = (7 - dt.getDay()) % 7 || 7;
+    dt.setDate(dt.getDate() + diff2);
+    inp.value = dt.toISOString().split('T')[0];
+    aviso.style.display = 'none';
+  }
+}
+
+async function abrirAtaSelecionada() {
+  const sel = document.getElementById('sel-ata-inicio');
+  if (!sel.value) { mostrarToast('Selecione uma ata da lista.'); return; }
+  document.getElementById('tela-selecao').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sel-ata-existente').value = sel.value;
+  await carregarAtaExistente();
+}
+
+async function criarNovaAtaSelecao() {
+  const data = document.getElementById('inp-data-nova-ata').value;
+  if (!data) { mostrarToast('Escolha a data do domingo.'); return; }
+
+  mostrarLoading('Verificando data...');
+  try {
+    // Verificar se já existe ata para essa data
+    const existente = await sbFetch(`atas?data_reuniao=eq.${data}&select=id,data_reuniao`);
+    esconderLoading();
+
+    if (existente && existente.length > 0) {
+      // Ata já existe — abrir ela em vez de criar em branco
+      const confirmar = confirm(
+        `Já existe uma ata para ${formatarDataBr(data)}.\n\nVocê será direcionado para essa ata existente. Nenhum dado será apagado.`
+      );
+      if (!confirmar) return;
+      document.getElementById('tela-selecao').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('sel-ata-existente').value = existente[0].id;
+      ataId = existente[0].id;
+      await carregarAtaExistente();
+    } else {
+      // Data nova — criar ata em branco normalmente
+      document.getElementById('tela-selecao').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('inp-data-reuniao').value = data;
+      novaAtaComData(data);
+    }
+  } catch(e) {
+    esconderLoading();
+    mostrarToast('Erro ao verificar data. Tente novamente.');
+    console.error(e);
+  }
+}
+
+function novaAtaComData(data) {
+  ataId = null; ultimoTimestampAta = null; valoresAnteriores = {};
+  localStorage.removeItem('ata_id_ativo');
+  document.getElementById('sel-ata-existente').value = '';
+  limparFormulario();
+  document.getElementById('inp-data-reuniao').value = data;
+  atualizarDataExibida(data, true);
+}
+
+function atualizarDataExibida(isoDate, isNova) {
+  const badge = document.getElementById('data-ata-exibida');
+  const novaTag = document.getElementById('status-ata-nova');
+  badge.textContent = isoDate ? formatarDataBr(isoDate) : '—';
+  if (novaTag) novaTag.style.display = isNova ? 'inline-block' : 'none';
+  // Sincronizar campo hidden
+  document.getElementById('inp-data-reuniao').value = isoDate || '';
+}
+
+// ============================================================
+// MEMBROS EXTRAS
+// ============================================================
+async function carregarMembrosExtras() {
+  try {
+    const extras = await sbFetch('membros_extras?select=nome&order=nome');
+    extras.forEach(e => { if (!MEMBROS.includes(e.nome)) MEMBROS.push(e.nome); });
+    MEMBROS.sort((a,b) => a.localeCompare(b,'pt-BR'));
+  } catch(e) {}
+}
+
+// ============================================================
+// LISTA DE ATAS
+// ============================================================
+async function carregarListaAtas() {
+  try {
+    const atas = await sbFetch('atas?select=id,data_reuniao&order=data_reuniao.desc');
+    const sel = document.getElementById('sel-ata-existente');
+    sel.innerHTML = '<option value="">— Nova Ata / Selecionar Data —</option>';
+    atas.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id; opt.textContent = formatarDataBr(a.data_reuniao);
+      if (a.id === ataId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // Atualizar o select do modal se estiver aberto
+    const selModal = document.getElementById('sel-ata-modal');
+    if (selModal) {
+      const valorAtual = selModal.value;
+      selModal.innerHTML = '<option value="">— Selecione uma ata —</option>';
+      atas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id; opt.textContent = formatarDataBr(a.data_reuniao);
+        if (a.id === ataId || a.id === valorAtual) opt.selected = true;
+        selModal.appendChild(opt);
+      });
+    }
+  } catch(e) { console.error(e); }
+}
+
+function formatarDataBr(isoDate) {
+  const [y,m,d] = isoDate.split('-');
+  const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+  return `${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dt.getDay()]} ${d}/${m}/${y}`;
+}
+
+// ============================================================
+// DATA — APENAS DOMINGOS
+// ============================================================
+function dataAlterada() {
+  const inp = document.getElementById('inp-data-reuniao');
+  const val = inp.value; if (!val) return;
+  const [y,m,d] = val.split('-').map(Number);
+  const dt = new Date(y,m-1,d);
+  if (dt.getDay() !== 0) {
+    const diff = (7 - dt.getDay()) % 7 || 7;
+    dt.setDate(dt.getDate() + diff);
+    inp.value = dt.toISOString().split('T')[0];
+  }
+  agendarSalvamento();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('inp-data-reuniao');
+  if (inp) {
+    const hoje = new Date();
+    const diff = (7 - hoje.getDay()) % 7;
+    const dom = new Date(hoje); dom.setDate(hoje.getDate() + (diff===0?0:diff));
+    inp.value = dom.toISOString().split('T')[0];
+  }
+});
+
+// ============================================================
+// NOVA ATA (ir para tela de seleção, foco no bloco de criar)
+// ============================================================
+function novaAta() {
+  voltarParaSelecao();
+}
+
+function voltarParaSelecao() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('tela-selecao').style.display = 'flex';
+  // Focar no campo de data de nova ata
+  setTimeout(() => {
+    const inp = document.getElementById('inp-data-nova-ata');
+    if (inp) inp.focus();
+  }, 200);
+}
+
+function limparFormulario() {
+  ['presidido','dirigido','anuncios','hino-abertura','oracao-abertura','regente','pianista',
+   'hino-sacramental','bencao-pao','bencao-agua','hino-intermediario','orador1','orador2','orador3',
+   'hino-encerramento','oracao-encerramento','testemunhos-jejum','visitantes','homens','frequencia-total'
+  ].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  inicializarGruposRepetitivos();
+}
+
+// ============================================================
+// CARREGAR ATA EXISTENTE
+// ============================================================
+async function carregarAtaExistente() {
+  const id = document.getElementById('sel-ata-existente').value;
+  if (!id) { novaAta(); return; }
+  mostrarLoading('Carregando ata...');
+  try {
+    const [ata] = await sbFetch(`atas?id=eq.${id}&select=*`);
+    const desob = await sbFetch(`desobrigacoes?ata_id=eq.${id}&order=ordem`);
+    const apos  = await sbFetch(`apoios?ata_id=eq.${id}&order=ordem`);
+    const ords  = await sbFetch(`ordenacoes?ata_id=eq.${id}&order=ordem`);
+    const confs = await sbFetch(`confirmacoes?ata_id=eq.${id}&order=ordem`);
+    const crias = await sbFetch(`bencaos_criancas?ata_id=eq.${id}&order=ordem`);
+
+    ataId = id; ultimoTimestampAta = ata.atualizada_em; valoresAnteriores = {};
+    document.getElementById('inp-data-reuniao').value = ata.data_reuniao;
+    atualizarDataExibida(ata.data_reuniao, false);
+
+    const mapa = {
+      'presidido':ata.presidido,'dirigido':ata.dirigido,'anuncios':ata.anuncios,
+      'hino-abertura':ata.hino_abertura,'oracao-abertura':ata.oracao_abertura,
+      'regente':ata.regente,'pianista':ata.pianista,
+      'hino-sacramental':ata.hino_sacramental,'bencao-pao':ata.bencao_pao,'bencao-agua':ata.bencao_agua,
+      'hino-intermediario':ata.hino_intermediario,
+      'orador1':ata.primeiro_orador,'orador2':ata.segundo_orador,'orador3':ata.terceiro_orador,
+      'hino-encerramento':ata.hino_encerramento,'oracao-encerramento':ata.oracao_encerramento,
+      'testemunhos-jejum':ata.testemunhos_jejum,
+      'visitantes':ata.visitantes,'homens':ata.homens,'frequencia-total':ata.frequencia_total
+    };
+    Object.entries(mapa).forEach(([elId, val]) => {
+      const el = document.getElementById(elId);
+      if (el && val != null) {
+        el.value = val;
+        valoresAnteriores[elId] = String(val);
+        if (el.tagName === 'TEXTAREA') autoResize(el);
+      }
+    });
+
+    carregarGrupoRepetitivo('desobrigacoes', desob);
+    carregarGrupoRepetitivo('apoios', apos);
+    carregarGrupoRepetitivo('ordenacoes', ords);
+    carregarGrupoRepetitivo('confirmacoes', confs);
+    carregarGrupoRepetitivo('criancas', crias);
+
+    // Carregar visitantes
+    try {
+      const nomes = ata.visitantes_nomes ? JSON.parse(ata.visitantes_nomes) : [];
+      inicializarVisitantes(nomes.length ? nomes : ['']);
+    } catch(e) { inicializarVisitantes(['']); }
+
+    // Carregar faltantes
+    try {
+      const faltantes = ata.faltantes_nomes ? JSON.parse(ata.faltantes_nomes) : [];
+      inicializarFaltantes(faltantes.length ? faltantes : []);
+    } catch(e) { inicializarFaltantes([]); }
+
+    localStorage.setItem('ata_id_ativo', id);
+    await carregarLog();
+    esconderLoading();
+    mostrarToast('Ata carregada');
+    configurarBloqueiosCampos();
+  } catch(e) {
+    esconderLoading(); mostrarToast('Erro ao carregar ata'); console.error(e);
+  }
+}
+
+// ============================================================
+// AUTO SAVE com LOG POR CAMPO
+// ============================================================
+function configurarAutoSave() {
+  // Capturar valor ANTES de editar (focus)
+  document.querySelectorAll('input[id], textarea[id]').forEach(el => {
+    el.addEventListener('focus', () => {
+      if (!valoresAnteriores[el.id]) valoresAnteriores[el.id] = el.value || '';
+    });
+    el.addEventListener('change', () => { agendarSalvamento(el); });
+    el.addEventListener('input',  () => { agendarSalvamento(el); });
+  });
+}
+
+const NOMES_CAMPOS = {
+  'presidido':'Presidido','dirigido':'Dirigido','anuncios':'Anúncios e Reconhecimento',
+  'hino-abertura':'Hino Abertura','oracao-abertura':'Oração Abertura','regente':'Regente','pianista':'Pianista',
+  'hino-sacramental':'Hino Sacramental','bencao-pao':'Bênção do Pão','bencao-agua':'Bênção da Água',
+  'hino-intermediario':'Hino Intermediário',
+  'orador1':'1º Orador','orador2':'2º Orador','orador3':'3º Orador',
+  'hino-encerramento':'Hino Encerramento','oracao-encerramento':'Oração Final',
+  'testemunhos-jejum':'Testemunhos Jejum',
+  'visitantes':'Visitantes','homens':'Homens','frequencia-total':'Frequência Total'
+};
+
+function agendarSalvamento(el) {
+  clearTimeout(saveTimeout);
+  setStatus('salvando','💾 Salvando...');
+  saveTimeout = setTimeout(() => salvarAta(el), 1500);
+}
+
+async function salvarAta(campoAlterado) {
+  const data = document.getElementById('inp-data-reuniao').value;
+  if (!data) return;
+  const [y,m,d] = data.split('-').map(Number);
+  if (new Date(y,m-1,d).getDay() !== 0) return;
+
+  setStatus('salvando','💾 Salvando...');
+
+  const payload = {
+    data_reuniao:data,
+    presidido:v('presidido'), dirigido:v('dirigido'), anuncios:v('anuncios'),
+    hino_abertura:v('hino-abertura'), oracao_abertura:v('oracao-abertura'),
+    regente:v('regente'), pianista:v('pianista'),
+    hino_sacramental:v('hino-sacramental'), bencao_pao:null, bencao_agua:null,
+    hino_intermediario:v('hino-intermediario'),
+    primeiro_orador:v('orador1'), segundo_orador:v('orador2'), terceiro_orador:v('orador3'),
+    hino_encerramento:v('hino-encerramento'), oracao_encerramento:v('oracao-encerramento'),
+    testemunhos_jejum:v('testemunhos-jejum'),
+    visitantes:parseInt(v('visitantes'))||null, homens:parseInt(v('homens'))||null,
+    frequencia_total:parseInt(v('frequencia-total'))||null,
+    visitantes_nomes: JSON.stringify(getVisitantesNomes()),
+    faltantes_nomes: JSON.stringify(getFaltantesLista()),
+    atualizada_por:usuarioAtual
+  };
+
+  try {
+    let ataData;
+    if (ataId) {
+      const res = await sbFetch(`atas?id=eq.${ataId}`, 'PATCH', payload);
+      ataData = res[0];
+    } else {
+      try {
+        const res = await sbFetch('atas', 'POST', payload);
+        ataData = res[0]; ataId = ataData.id;
+        localStorage.setItem('ata_id_ativo', ataId);
+      } catch {
+        const existing = await sbFetch(`atas?data_reuniao=eq.${data}&select=id`);
+        if (existing.length > 0) {
+          ataId = existing[0].id;
+          localStorage.setItem('ata_id_ativo', ataId);
+          const res = await sbFetch(`atas?id=eq.${ataId}`, 'PATCH', payload);
+          ataData = res[0];
+        }
+      }
+    }
+
+    await salvarGrupo('desobrigacoes', ataId, ['nome','cargo']);
+    await salvarGrupo('apoios', ataId, ['nome','cargo']);
+    await salvarGrupo('ordenacoes', ataId, ['nome','oficio','por']);
+    await salvarGrupo('confirmacoes', ataId, ['nome','por']);
+    await salvarGrupo('bencaos_criancas', ataId, ['nome','por']);
+
+    // Registrar log por campo específico
+    if (campoAlterado && campoAlterado.id) {
+      const id = campoAlterado.id;
+      const valorNovo = campoAlterado.value || '';
+      const valorAnt  = valoresAnteriores[id] || '';
+      if (valorNovo !== valorAnt && NOMES_CAMPOS[id]) {
+        await sbFetch('log_alteracoes', 'POST', {
+          ata_id: ataId, usuario: usuarioAtual,
+          campo: NOMES_CAMPOS[id],
+          valor_anterior: valorAnt || '(vazio)',
+          valor_novo: valorNovo || '(apagado)'
+        }).catch(()=>{});
+        valoresAnteriores[id] = valorNovo;
+      }
+    }
+
+    ultimoTimestampAta = ataData?.atualizada_em || ultimoTimestampAta;
+    await carregarListaAtas();
+    setStatus('salvo','✅ Salvo');
+  } catch(e) {
+    setStatus('','❌ Erro ao salvar'); console.error(e);
+  }
+}
+
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? (el.value.trim() || null) : null;
+}
+function setStatus(cls, txt) {
+  const el = document.getElementById('status-salvo');
+  el.className = 'status-salvamento ' + cls; el.textContent = txt;
+}
+
+// ============================================================
+// BLOQUEIO DE CAMPOS EM EDIÇÃO
+// ============================================================
+function configurarBloqueiosCampos() {
+  const CAMPOS_BLOQUEAVEIS = [
+    'presidido','dirigido','anuncios','hino-abertura','oracao-abertura','regente','pianista',
+    'hino-sacramental','bencao-pao','bencao-agua','hino-intermediario',
+    'orador1','orador2','orador3','hino-encerramento','oracao-encerramento',
+    'testemunhos-jejum','visitantes','homens','frequencia-total'
+  ];
+
+  CAMPOS_BLOQUEAVEIS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('focus', () => registrarBloqueio(id));
+    el.addEventListener('blur',  () => liberarBloqueio(id));
+  });
+
+  // Verificar bloqueios de outros a cada 3 segundos
+  bloqueioInterval = setInterval(atualizarVisualizacaoBloqueios, 3000);
+}
+
+async function registrarBloqueio(campoId) {
+  if (!ataId || !usuarioAtual) return;
+  try {
+    // Upsert: deletar e recriar (mais simples e compatível)
+    await sbFetch(`campos_em_edicao?ata_id=eq.${ataId}&campo_id=eq.${campoId}`, 'DELETE').catch(()=>{});
+    await sbFetch('campos_em_edicao', 'POST', {
+      ata_id: ataId, campo_id: campoId, usuario: usuarioAtual,
+      bloqueado_em: new Date().toISOString()
+    }).catch(()=>{});
+  } catch(e) {}
+}
+
+async function liberarBloqueio(campoId) {
+  if (!ataId || !usuarioAtual) return;
+  try {
+    await sbFetch(`campos_em_edicao?ata_id=eq.${ataId}&campo_id=eq.${campoId}&usuario=eq.${encodeURIComponent(usuarioAtual)}`, 'DELETE');
+  } catch(e) {}
+}
+
+async function atualizarVisualizacaoBloqueios() {
+  if (!ataId) return;
+  try {
+    const limite = new Date(Date.now() - 30000).toISOString(); // expirar após 30s
+    await sbFetch(`campos_em_edicao?bloqueado_em=lt.${limite}`, 'DELETE').catch(()=>{});
+    const bloqueios = await sbFetch(`campos_em_edicao?ata_id=eq.${ataId}&select=campo_id,usuario`);
+
+    // Remover indicadores anteriores
+    document.querySelectorAll('.campo-bloqueado-badge').forEach(b => b.remove());
+    document.querySelectorAll('.campo-bloqueado').forEach(el => {
+      el.classList.remove('campo-bloqueado');
+      el.removeAttribute('readonly');
+      el.removeAttribute('title');
+    });
+
+    bloqueios.forEach(b => {
+      if (b.usuario === usuarioAtual) return; // não bloquear para si mesmo
+      const el = document.getElementById(b.campo_id);
+      if (!el) return;
+      el.classList.add('campo-bloqueado');
+      el.setAttribute('readonly', true);
+      el.setAttribute('title', `✏️ ${b.usuario} está editando este campo`);
+
+      // Inserir badge visual
+      const badge = document.createElement('div');
+      badge.className = 'campo-bloqueado-badge';
+      badge.textContent = `✏️ ${b.usuario} editando...`;
+      el.parentNode.insertBefore(badge, el.nextSibling);
+    });
+  } catch(e) {}
+}
+
+// ============================================================
+// POLLING — sincronização em tempo real
+// ============================================================
+function iniciarPolling() {
+  pollingInterval = setInterval(async () => {
+    if (!ataId || !tokenSessao) return;
+    try {
+      const res = await sbFetch(`atas?id=eq.${ataId}&select=atualizada_em,atualizada_por`);
+      if (!res || !res.length) return;
+      const ts = res[0].atualizada_em, por = res[0].atualizada_por;
+      if (ultimoTimestampAta && ts !== ultimoTimestampAta && por !== usuarioAtual) {
+        ultimoTimestampAta = ts;
+        await recarregarAtaSilencioso();
+        mostrarToast(`✏️ Atualizado por ${por}`);
+      } else if (!ultimoTimestampAta) { ultimoTimestampAta = ts; }
+    } catch(e) {}
+  }, 8000); // a cada 8 segundos para maior responsividade
+}
+
+async function recarregarAtaSilencioso() {
+  if (!ataId) return;
+  try {
+    const [ata] = await sbFetch(`atas?id=eq.${ataId}&select=*`);
+    const desob = await sbFetch(`desobrigacoes?ata_id=eq.${ataId}&order=ordem`);
+    const apos  = await sbFetch(`apoios?ata_id=eq.${ataId}&order=ordem`);
+    const ords  = await sbFetch(`ordenacoes?ata_id=eq.${ataId}&order=ordem`);
+    const confs = await sbFetch(`confirmacoes?ata_id=eq.${ataId}&order=ordem`);
+    const crias = await sbFetch(`bencaos_criancas?ata_id=eq.${ataId}&order=ordem`);
+
+    const mapa = {
+      'presidido':ata.presidido,'dirigido':ata.dirigido,'anuncios':ata.anuncios,
+      'hino-abertura':ata.hino_abertura,'oracao-abertura':ata.oracao_abertura,
+      'regente':ata.regente,'pianista':ata.pianista,
+      'hino-sacramental':ata.hino_sacramental,'bencao-pao':ata.bencao_pao,'bencao-agua':ata.bencao_agua,
+      'hino-intermediario':ata.hino_intermediario,
+      'orador1':ata.primeiro_orador,'orador2':ata.segundo_orador,'orador3':ata.terceiro_orador,
+      'hino-encerramento':ata.hino_encerramento,'oracao-encerramento':ata.oracao_encerramento,
+      'testemunhos-jejum':ata.testemunhos_jejum,
+      'visitantes':ata.visitantes,'homens':ata.homens,'frequencia-total':ata.frequencia_total
+    };
+    Object.entries(mapa).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val != null && document.activeElement !== el) {
+        el.value = val;
+        valoresAnteriores[id] = String(val);
+        if (el.tagName === 'TEXTAREA') autoResize(el);
+      }
+    });
+    carregarGrupoRepetitivo('desobrigacoes', desob);
+    carregarGrupoRepetitivo('apoios', apos);
+    carregarGrupoRepetitivo('ordenacoes', ords);
+    carregarGrupoRepetitivo('confirmacoes', confs);
+    carregarGrupoRepetitivo('criancas', crias);
+    ultimoTimestampAta = ata.atualizada_em;
+    await carregarLog();
+  } catch(e) {}
+}
+
+// ============================================================
+// VISITANTES (até 10 nomes)
+// ============================================================
+function inicializarVisitantes(nomes) {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  if (!container) return;
+  container.innerHTML = '';
+  const lista = nomes && nomes.length ? nomes : [''];
+  lista.forEach((nome, i) => adicionarLinhaVisitante(nome, i));
+  atualizarBotaoVisitante();
+}
+
+function adicionarLinhaVisitante(nome, idx) {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  if (!container) return;
+  const total = container.querySelectorAll('.visitantes-row').length;
+  if (total >= 10) return;
+  const div = document.createElement('div');
+  div.className = 'visitantes-row membro-wrapper';
+  const num = document.createElement('span');
+  num.className = 'visitantes-num';
+  num.textContent = (idx !== undefined ? idx+1 : total+1) + '.';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.maxLength = 70;
+  inp.placeholder = 'Nome do visitante...';
+  inp.value = nome || '';
+  inp.autocomplete = 'off';
+  inp.className = 'visitante-input';
+  const drop = document.createElement('div');
+  drop.className = 'membro-dropdown';
+  drop.id = 'drop-vis-' + (idx !== undefined ? idx : total);
+  inp.oninput  = () => { showMembrosGen(inp, drop); agendarSalvamento({}); };
+  inp.onblur   = () => setTimeout(() => drop.classList.remove('open'), 300);
+  inp.onkeydown = (e) => navegarDropdown(e, drop, inp);
+  const btnRem = document.createElement('button');
+  btnRem.className = 'btn-rem-row';
+  btnRem.innerHTML = '×';
+  btnRem.title = 'Remover';
+  btnRem.onclick = () => { div.remove(); renumerarVisitantes(); agendarSalvamento({}); atualizarBotaoVisitante(); };
+  div.appendChild(num); div.appendChild(inp); div.appendChild(drop); div.appendChild(btnRem);
+  container.appendChild(div);
+  atualizarBotaoVisitante();
+}
+
+function addVisitante() {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  const total = container ? container.querySelectorAll('.visitantes-row').length : 0;
+  if (total >= 10) { mostrarToast('Limite de 10 visitantes atingido.'); return; }
+  adicionarLinhaVisitante('', total);
+  atualizarBotaoVisitante();
+}
+
+function renumerarVisitantes() {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  if (!container) return;
+  container.querySelectorAll('.visitantes-num').forEach((el, i) => { el.textContent = (i+1) + '.'; });
+}
+
+function atualizarBotaoVisitante() {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  const btn = document.getElementById('btn-add-visitante');
+  if (!container || !btn) return;
+  const total = container.querySelectorAll('.visitantes-row').length;
+  btn.style.display = total >= 10 ? 'none' : 'block';
+}
+
+function getVisitantesNomes() {
+  const container = document.getElementById('grupo-visitantes-nomes');
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.visitante-input'))
+    .map(inp => inp.value.trim()).filter(v => v);
+}
+
+// ============================================================
+// AUTOCOMPLETE GENÉRICO para visitantes (sem ID fixo)
+// ============================================================
+function showMembrosGen(inp, drop) {
+  const q = inp.value.trim().toLowerCase();
+  if (q.length < 2) { drop.classList.remove('open'); return; }
+  const res = MEMBROS.filter(m => m.toLowerCase().includes(q)).slice(0,12);
+  drop.innerHTML = res.map(m =>
+    `<div class="membro-option" onmousedown="selecionarMembroGen(event,this,'${m.replace(/'/g,"\\'")}')">${m}</div>`
+  ).join('');
+  if (res.length) drop.innerHTML += `<div class="add-novo-membro" onmousedown="adicionarMembroGenDropdown(event,this,'${inp.value.trim().replace(/'/g,"\\'")}')">➕ Adicionar "${inp.value.trim()}"</div>`;
+  drop.classList.add(res.length || inp.value.trim() ? 'open' : '');
+  if (!res.length && !inp.value.trim()) drop.classList.remove('open');
+  // Associar o input ao drop para navegação
+  drop._inputRef = inp;
+}
+
+function selecionarMembroGen(ev, optEl, nome) {
+  ev.preventDefault();
+  const drop = optEl.closest('.membro-dropdown');
+  if (drop && drop._inputRef) drop._inputRef.value = nome;
+  drop.classList.remove('open');
+  agendarSalvamento({});
+}
+
+async function adicionarMembroGenDropdown(ev, optEl, nome) {
+  ev.preventDefault();
+  const drop = optEl.closest('.membro-dropdown');
+  if (drop && drop._inputRef) drop._inputRef.value = nome;
+  drop.classList.remove('open');
+  if (nome && !MEMBROS.includes(nome)) {
+    MEMBROS.push(nome); MEMBROS.sort((a,b) => a.localeCompare(b,'pt-BR'));
+    try { await sbFetch('membros_extras', 'POST', { nome, criado_por: usuarioAtual }); } catch(e) {}
+    mostrarToast(`Membro "${nome}" adicionado`);
+  }
+  agendarSalvamento({});
+}
+
+
+function inicializarGruposRepetitivos() {
+  renderGrupo('desobrigacoes',[{nome:'',cargo:''}]);
+  renderGrupo('apoios',[{nome:'',cargo:''}]);
+  renderGrupo('ordenacoes',[{nome:'',oficio:'Diácono',por:''}]);
+  renderGrupo('confirmacoes',[{nome:'',por:''}]);
+  renderGrupo('criancas',[{nome:'',por:''}]);
+  inicializarFaltantes([]);
+}
+
+// ============================================================
+// FALTANTES
+// ============================================================
+const ORGS = ['Quórum de Élderes','Sociedade de Socorro','Rapazes','Moças','JAS','Primária'];
+const ORG_BADGE = {
+  'Quórum de Élderes':'badge-qe','Sociedade de Socorro':'badge-ss',
+  'Rapazes':'badge-rap','Moças':'badge-moc','JAS':'badge-jas','Primária':'badge-pri'
+};
+
+function inicializarFaltantes(lista) {
+  const container = document.getElementById('grupo-faltantes');
+  if (!container) return;
+  container.innerHTML = '';
+  if (lista.length === 0) return;
+  lista.forEach((f, i) => adicionarLinhaFaltante(f.nome || '', f.org || '', i));
+}
+
+function addFaltante() {
+  const container = document.getElementById('grupo-faltantes');
+  if (!container) return;
+  const idx = container.querySelectorAll('.faltante-row').length;
+  adicionarLinhaFaltante('', '', idx);
+}
+
+function adicionarLinhaFaltante(nome, org, idx) {
+  const container = document.getElementById('grupo-faltantes');
+  const div = document.createElement('div');
+  div.className = 'faltante-row membro-wrapper';
+
+  // Input nome com autocomplete
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.maxLength = 70;
+  inp.className = 'faltante-nome';
+  inp.placeholder = 'Nome do irmão...';
+  inp.value = nome; inp.autocomplete = 'off';
+  const drop = document.createElement('div');
+  drop.className = 'membro-dropdown';
+  drop.id = 'drop-falt-' + idx;
+  inp.oninput  = () => { showMembrosGen(inp, drop); agendarSalvamento({}); };
+  inp.onblur   = () => setTimeout(() => drop.classList.remove('open'), 300);
+  inp.onkeydown = (e) => navegarDropdown(e, drop, inp);
+
+  // Select organização
+  const sel = document.createElement('select');
+  sel.className = 'faltante-org';
+  sel.innerHTML = '<option value="">— Organização —</option>' +
+    ORGS.map(o => `<option${o===org?' selected':''}>${o}</option>`).join('');
+  sel.onchange = () => agendarSalvamento({});
+
+  // Botão remover
+  const btnRem = document.createElement('button');
+  btnRem.className = 'btn-rem-row'; btnRem.innerHTML = '×'; btnRem.title = 'Remover';
+  btnRem.onclick = () => { div.remove(); agendarSalvamento({}); };
+
+  div.appendChild(inp); div.appendChild(drop); div.appendChild(sel); div.appendChild(btnRem);
+  container.appendChild(div);
+}
+
+function getFaltantesLista() {
+  const container = document.getElementById('grupo-faltantes');
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.faltante-row')).map(row => ({
+    nome: row.querySelector('.faltante-nome')?.value.trim() || '',
+    org:  row.querySelector('.faltante-org')?.value || ''
+  })).filter(f => f.nome);
+}
+
+// ============================================================
+// ESTATÍSTICAS
+// ============================================================
+function abrirEstatisticas() {
+  document.getElementById('modal-stats').style.display = 'flex';
+}
+function fecharEstatisticas() {
+  document.getElementById('modal-stats').style.display = 'none';
+}
+
+async function gerarEstatisticas() {
+  const periodo = document.getElementById('stats-periodo').value;
+  const orgFiltro = document.getElementById('stats-org-filtro').value;
+  const body = document.getElementById('stats-body');
+  body.innerHTML = `<div class="stats-loading"><div class="loading-spinner"></div>Carregando dados...</div>`;
+
+  // Calcular data de início conforme período
+  const hoje = new Date();
+  let mesesAtras = { mes:1, trimestre:3, semestre:6, anual:12 }[periodo] || 3;
+  const dataInicio = new Date(hoje);
+  dataInicio.setMonth(dataInicio.getMonth() - mesesAtras);
+  const dataInicioStr = dataInicio.toISOString().split('T')[0];
+
+  try {
+    const atas = await sbFetch(`atas?data_reuniao=gte.${dataInicioStr}&select=id,data_reuniao,visitantes,homens,frequencia_total,faltantes_nomes&order=data_reuniao`);
+
+    if (!atas.length) {
+      body.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Nenhuma ata encontrada no período selecionado.</div>';
+      return;
+    }
+
+    // Processar faltantes de todas as atas
+    const todosOsFaltantes = [];
+    atas.forEach(a => {
+      if (!a.faltantes_nomes) return;
+      try {
+        const lista = JSON.parse(a.faltantes_nomes);
+        lista.forEach(f => {
+          if (!f.nome) return;
+          if (orgFiltro && f.org !== orgFiltro) return;
+          todosOsFaltantes.push({ ...f, data: a.data_reuniao, ataId: a.id });
+        });
+      } catch(e) {}
+    });
+
+    // ---- Métricas gerais ----
+    const totalAtas = atas.length;
+    const freqMedia = Math.round(atas.filter(a=>a.frequencia_total).reduce((s,a)=>s+a.frequencia_total,0) / (atas.filter(a=>a.frequencia_total).length||1));
+    const totalFaltantes = todosOsFaltantes.length;
+    const mediaFaltantesPorAta = totalAtas ? (totalFaltantes/totalAtas).toFixed(1) : 0;
+
+    // ---- Ranking faltantes ----
+    const contFaltantes = {};
+    const orgFaltante = {};
+    todosOsFaltantes.forEach(f => {
+      contFaltantes[f.nome] = (contFaltantes[f.nome]||0)+1;
+      if (f.org) orgFaltante[f.nome] = f.org;
+    });
+    const ranking = Object.entries(contFaltantes).sort((a,b)=>b[1]-a[1]);
+
+    // ---- Rodízio: aparece entre 30% e 70% das atas ----
+    const rodizios = ranking.filter(([n,c]) => {
+      const pct = c/totalAtas;
+      return pct >= 0.3 && pct <= 0.7;
+    });
+
+    // ---- Críticos: faltou mais de 70% das atas ----
+    const criticos = ranking.filter(([n,c]) => c/totalAtas > 0.7);
+
+    // ---- Por organização ----
+    const porOrg = {};
+    ORGS.forEach(o => porOrg[o] = 0);
+    todosOsFaltantes.forEach(f => { if (f.org) porOrg[f.org] = (porOrg[f.org]||0)+1; });
+
+    // ---- Frequência por mês ----
+    const freqPorMes = {};
+    atas.forEach(a => {
+      const mes = a.data_reuniao.substring(0,7);
+      if (!freqPorMes[mes]) freqPorMes[mes] = { total:0, count:0, faltantes:0 };
+      if (a.frequencia_total) { freqPorMes[mes].total += a.frequencia_total; freqPorMes[mes].count++; }
+    });
+    todosOsFaltantes.forEach(f => {
+      const mes = f.data.substring(0,7);
+      if (freqPorMes[mes]) freqPorMes[mes].faltantes++;
+    });
+
+    const periodoLabel = {mes:'último mês',trimestre:'último trimestre',semestre:'último semestre',anual:'últimos 12 meses'}[periodo];
+    const maxFaltantes = ranking.length ? ranking[0][1] : 1;
+
+    body.innerHTML = `
+      <!-- KPIs -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-num">${totalAtas}</div>
+          <div class="stat-label">Reuniões no período</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${freqMedia}</div>
+          <div class="stat-label">Freq. média por reunião</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${totalFaltantes}</div>
+          <div class="stat-label">Ausências registradas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${mediaFaltantesPorAta}</div>
+          <div class="stat-label">Média faltantes/reunião</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${criticos.length}</div>
+          <div class="stat-label">Irmãos críticos (&gt;70% faltas)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${rodizios.length}</div>
+          <div class="stat-label">Irmãos em rodízio</div>
+        </div>
+      </div>
+
+      <p style="font-size:0.78rem;color:#999;margin-bottom:16px;">Período: ${periodoLabel}${orgFiltro?' · Organização: '+orgFiltro:''} · ${totalAtas} reuniões analisadas</p>
+
+      <!-- Frequência por mês -->
+      <div class="stats-section-title">📅 Frequência por Mês</div>
+      <table class="stats-table">
+        <thead><tr><th>Mês</th><th>Média frequência</th><th>Ausências</th></tr></thead>
+        <tbody>
+          ${Object.entries(freqPorMes).map(([mes,[_,dados]]) => {
+            const [,d] = Object.entries(freqPorMes).find(([k])=>k===mes)||[mes,freqPorMes[mes]];
+            return '';
+          }).join('')}
+          ${Object.entries(freqPorMes).map(([mes, d]) => {
+            const media = d.count ? Math.round(d.total/d.count) : '—';
+            const [ano, m] = mes.split('-');
+            const nomeMes = new Date(parseInt(ano),parseInt(m)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+            return `<tr><td>${nomeMes}</td><td>${media}</td><td>${d.faltantes}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+
+      <!-- Faltantes por organização -->
+      <div class="stats-section-title">🏛️ Ausências por Organização</div>
+      <div style="margin-bottom:16px;">
+        ${ORGS.map(org => {
+          const total = porOrg[org]||0;
+          const pct = totalFaltantes ? Math.round(total/totalFaltantes*100) : 0;
+          const badgeClass = ORG_BADGE[org]||'';
+          return `<div class="stats-bar-wrap">
+            <span class="stats-bar-label"><span class="badge-org ${badgeClass}">${org}</span></span>
+            <div class="stats-bar-bg"><div class="stats-bar-fill" style="width:${pct}%"></div></div>
+            <span class="stats-bar-val">${total}</span>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Irmãos críticos -->
+      ${criticos.length ? `
+      <div class="stats-section-title">🚨 Irmãos Críticos (faltaram &gt;70% das reuniões)</div>
+      <table class="stats-table">
+        <thead><tr><th>Nome</th><th>Organização</th><th>Faltas</th><th>% das reuniões</th></tr></thead>
+        <tbody>
+          ${criticos.map(([nome, cont]) => `
+            <tr>
+              <td>${nome} <span class="critico-tag">crítico</span></td>
+              <td><span class="badge-org ${ORG_BADGE[orgFaltante[nome]]||''}">${orgFaltante[nome]||'—'}</span></td>
+              <td><strong>${cont}</strong></td>
+              <td>${Math.round(cont/totalAtas*100)}%</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
+
+      <!-- Irmãos em rodízio -->
+      ${rodizios.length ? `
+      <div class="stats-section-title">🔄 Irmãos em Rodízio (faltaram entre 30% e 70%)</div>
+      <table class="stats-table">
+        <thead><tr><th>Nome</th><th>Organização</th><th>Faltas</th><th>% das reuniões</th></tr></thead>
+        <tbody>
+          ${rodizios.map(([nome, cont]) => `
+            <tr>
+              <td>${nome} <span class="rodizio-tag">rodízio</span></td>
+              <td><span class="badge-org ${ORG_BADGE[orgFaltante[nome]]||''}">${orgFaltante[nome]||'—'}</span></td>
+              <td>${cont}</td>
+              <td>${Math.round(cont/totalAtas*100)}%</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
+
+      <!-- Ranking completo -->
+      <div class="stats-section-title">📋 Ranking Completo de Ausências</div>
+      <div style="margin-bottom:16px;">
+        ${ranking.slice(0,30).map(([nome, cont]) => {
+          const pct = Math.round(cont/totalAtas*100);
+          const fillPct = Math.round(cont/maxFaltantes*100);
+          const isCrit = cont/totalAtas > 0.7;
+          const isRod  = !isCrit && cont/totalAtas >= 0.3;
+          return `<div class="stats-bar-wrap">
+            <span class="stats-bar-label" title="${nome}">${nome}${isCrit?'<span class="critico-tag">crítico</span>':isRod?'<span class="rodizio-tag">rodízio</span>':''}</span>
+            <div class="stats-bar-bg"><div class="stats-bar-fill" style="width:${fillPct}%;background:${isCrit?'#c62828':isRod?'#e65100':'var(--verde)'}"></div></div>
+            <span class="stats-bar-val">${cont}×</span>
+          </div>`;
+        }).join('')}
+        ${ranking.length > 30 ? `<p style="font-size:0.78rem;color:#aaa;text-align:center;margin-top:8px;">+ ${ranking.length-30} irmãos com menor frequência de faltas</p>` : ''}
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div style="padding:30px;color:#c62828;text-align:center;">Erro ao carregar dados: ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+
+function addRow(tipo) {
+  const container = document.getElementById('grupo-'+tipo);
+  const idx = container.querySelectorAll('.repeatable-row').length;
+  container.appendChild(criarRow(tipo, idx, {}));
+  agendarSalvamento({});
+}
+
+function criarRow(tipo, idx, data) {
+  const div = document.createElement('div');
+  div.className = 'repeatable-row'; div.dataset.tipo = tipo; div.dataset.idx = idx;
+
+  if (tipo === 'desobrigacoes' || tipo === 'apoios') {
+    div.innerHTML = `<span class="rr-label">Nome</span>
+      <input type="text" maxlength="70" placeholder="Nome..." value="${esc(data.nome||'')}">
+      <span class="rr-label">Cargo</span>
+      <input type="text" maxlength="70" placeholder="Cargo..." value="${esc(data.cargo||'')}">
+      <button class="btn-rem-row" onclick="remRow(this)" title="Remover">×</button>`;
+  } else if (tipo === 'ordenacoes') {
+    div.innerHTML = `<span class="rr-label">Nome</span>
+      <input type="text" maxlength="50" placeholder="Nome..." value="${esc(data.nome||'')}">
+      <select style="max-width:130px;">
+        <option ${data.oficio==='Diácono'?'selected':''}>Diácono</option>
+        <option ${data.oficio==='Mestre'?'selected':''}>Mestre</option>
+        <option ${data.oficio==='Sacerdote'?'selected':''}>Sacerdote</option>
+      </select>
+      <span class="rr-label">Por</span>
+      <input type="text" maxlength="50" placeholder="Por quem..." value="${esc(data.por||'')}">
+      <button class="btn-rem-row" onclick="remRow(this)" title="Remover">×</button>`;
+  } else {
+    div.innerHTML = `<span class="rr-label">Nome</span>
+      <input type="text" maxlength="50" placeholder="Nome..." value="${esc(data.nome||'')}">
+      <span class="rr-label">Por</span>
+      <input type="text" maxlength="50" placeholder="Por quem..." value="${esc(data.por||'')}">
+      <button class="btn-rem-row" onclick="remRow(this)" title="Remover">×</button>`;
+  }
+  div.querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => agendarSalvamento({})));
+  return div;
+}
+
+function remRow(btn) {
+  const row = btn.closest('.repeatable-row');
+  if (row.parentElement.children.length > 1) { row.remove(); agendarSalvamento({}); }
+}
+
+function renderGrupo(tipo, dados) {
+  const container = document.getElementById('grupo-'+tipo);
+  container.innerHTML = '';
+  dados.forEach((d,i) => container.appendChild(criarRow(tipo, i, d)));
+}
+
+function carregarGrupoRepetitivo(tipo, dados) {
+  renderGrupo(tipo, dados && dados.length ? dados : [{}]);
+}
+
+async function salvarGrupo(tabela, ataId, campos) {
+  await sbFetch(`${tabela}?ata_id=eq.${ataId}`, 'DELETE');
+  const tipo = tabela === 'bencaos_criancas' ? 'criancas' : tabela;
+  const container = document.getElementById('grupo-'+tipo);
+  if (!container) return;
+  const rows = container.querySelectorAll('.repeatable-row');
+  const items = [];
+  rows.forEach((row, idx) => {
+    const inputs = row.querySelectorAll('input, select');
+    const obj = { ata_id: ataId, ordem: idx };
+    campos.forEach((campo, ci) => { obj[campo] = inputs[ci]?.value.trim() || ''; });
+    if (Object.entries(obj).some(([k,val]) => k !== 'ata_id' && k !== 'ordem' && val)) items.push(obj);
+  });
+  if (items.length) await sbFetch(tabela, 'POST', items);
+}
+
+// ============================================================
+// LOG
+// ============================================================
+async function carregarLog() {
+  if (!ataId) return;
+  try {
+    const logs = await sbFetch(`log_alteracoes?ata_id=eq.${ataId}&order=alterado_em.desc&limit=100`);
+    const el = document.getElementById('log-entries');
+    if (!logs.length) { el.innerHTML = '<em style="color:#aaa;font-size:0.82rem;">Nenhuma alteração registrada.</em>'; return; }
+    el.innerHTML = logs.map(l => {
+      const campoPart = l.campo ? `<strong>${l.campo}</strong>: ` : '';
+      const valorPart = (l.valor_anterior && l.valor_novo)
+        ? `<span style="color:#c62828;text-decoration:line-through">${l.valor_anterior.substring(0,40)}</span> → <span style="color:#2e7d32">${l.valor_novo.substring(0,40)}</span>`
+        : (l.valor_novo || '');
+      return `<div class="log-entry">
+        <span class="log-user">${l.usuario}</span>
+        <span class="log-time"> · ${new Date(l.alterado_em).toLocaleString('pt-BR')}</span>
+        ${l.campo ? ' · ' + campoPart + valorPart : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function toggleLog() {
+  const p = document.getElementById('log-panel');
+  p.style.display = p.style.display === 'none' || !p.style.display ? 'block' : 'none';
+  if (p.style.display === 'block') carregarLog();
+}
+
+// ============================================================
+// PAINEL DE ATAS (DIRETÓRIO)
+// ============================================================
+function abrirPainelAtas() {
+  let modal = document.getElementById('modal-atas');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-atas';
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="fecharPainelAtas()"></div>
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>📋 Diretório de Atas</h3>
+          <button onclick="fecharPainelAtas()" class="modal-close">✕</button>
+        </div>
+        <div class="modal-search">
+          <div style="margin-bottom:10px;">
+            <label style="font-size:0.8rem;font-weight:600;color:#2d6a2d;display:block;margin-bottom:4px;">🔍 Buscar por data</label>
+            <input type="text" id="busca-atas" placeholder="Ex: 13/04/2025 ou abril..." oninput="filtrarAtas()">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;color:#2d6a2d;display:block;margin-bottom:4px;">📋 Selecionar pela lista</label>
+            <select id="sel-ata-modal" onchange="selecionarAtaPorLista()" style="width:100%;padding:9px 14px;border:2px solid #c8e6c9;border-radius:8px;font-size:0.92rem;font-family:Inter,sans-serif;background:#fff9c4;color:#222;cursor:pointer;">
+              <option value="">— Selecione uma ata —</option>
+            </select>
+          </div>
+        </div>
+        <div id="lista-atas-modal" class="lista-atas">
+          <div style="text-align:center;padding:20px;color:#888;">Carregando...</div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  carregarListaAtasModal();
+}
+
+function fecharPainelAtas() {
+  const modal = document.getElementById('modal-atas');
+  if (modal) modal.style.display = 'none';
+}
+
+let todasAsAtas = [];
+async function carregarListaAtasModal() {
+  try {
+    todasAsAtas = await sbFetch('atas?select=id,data_reuniao,presidido,atualizada_por,atualizada_em&order=data_reuniao.desc');
+    renderListaAtas(todasAsAtas);
+    // Popular o select do modal
+    const sel = document.getElementById('sel-ata-modal');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Selecione uma ata —</option>';
+      todasAsAtas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = formatarDataBr(a.data_reuniao) + (a.presidido ? ' · ' + a.presidido : '');
+        if (a.id === ataId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {
+    document.getElementById('lista-atas-modal').innerHTML = '<div style="padding:20px;color:#c62828;">Erro ao carregar atas.</div>';
+  }
+}
+
+async function selecionarAtaPorLista() {
+  const sel = document.getElementById('sel-ata-modal');
+  if (!sel || !sel.value) return;
+  await selecionarAtaDoModal(sel.value);
+}
+
+function filtrarAtas() {
+  const q = document.getElementById('busca-atas').value.trim().toLowerCase();
+  if (!q) { renderListaAtas(todasAsAtas); return; }
+  const filtradas = todasAsAtas.filter(a => {
+    const dataBr = formatarDataBr(a.data_reuniao).toLowerCase();
+    return dataBr.includes(q) || a.data_reuniao.includes(q);
+  });
+  renderListaAtas(filtradas);
+}
+
+function renderListaAtas(atas) {
+  const el = document.getElementById('lista-atas-modal');
+  if (!atas.length) { el.innerHTML = '<div style="padding:20px;color:#888;text-align:center;">Nenhuma ata encontrada.</div>'; return; }
+  el.innerHTML = atas.map(a => `
+    <div class="ata-item" onclick="selecionarAtaDoModal('${a.id}')">
+      <div class="ata-item-data">${formatarDataBr(a.data_reuniao)}</div>
+      <div class="ata-item-info">
+        ${a.presidido ? `Presidido: ${a.presidido}` : '<em style="color:#aaa;">Sem presidido</em>'}
+        ${a.atualizada_por ? ` · Última edição: ${a.atualizada_por}` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function selecionarAtaDoModal(id) {
+  fecharPainelAtas();
+  document.getElementById('tela-selecao').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sel-ata-existente').value = id;
+  await carregarAtaExistente();
+}
+
+// ============================================================
+// NAVEGAÇÃO POR TECLADO NOS DROPDOWNS
+// ============================================================
+function navegarDropdown(ev, drop, inp) {
+  if (!drop) return;
+  const itens = drop.querySelectorAll('.hino-option:not([style*="color:#aaa"]), .membro-option, .hino-option');
+  if (!itens.length) return;
+  let ativo = drop.querySelector('.dropdown-ativo');
+  const idx = ativo ? Array.from(itens).indexOf(ativo) : -1;
+
+  if (ev.key === 'ArrowDown') {
+    ev.preventDefault();
+    const prox = idx < itens.length - 1 ? idx + 1 : 0;
+    itens.forEach(el => el.classList.remove('dropdown-ativo'));
+    itens[prox].classList.add('dropdown-ativo');
+    itens[prox].scrollIntoView({ block: 'nearest' });
+  } else if (ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    const ant = idx > 0 ? idx - 1 : itens.length - 1;
+    itens.forEach(el => el.classList.remove('dropdown-ativo'));
+    itens[ant].classList.add('dropdown-ativo');
+    itens[ant].scrollIntoView({ block: 'nearest' });
+  } else if (ev.key === 'Enter') {
+    if (ativo) { ev.preventDefault(); ativo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); }
+  } else if (ev.key === 'Escape') {
+    drop.classList.remove('open');
+  }
+}
+
+// ============================================================
+// AUTOCOMPLETE HINOS
+// ============================================================
+function showHinos(inp) {
+  const q = inp.value.trim().toLowerCase();
+  const drop = document.getElementById('drop-'+inp.id);
+  if (!drop || !q) { drop?.classList.remove('open'); return; }
+  const res = HINOS.filter(h => h.num.startsWith(q) || h.name.toLowerCase().includes(q)).slice(0,20);
+  drop.innerHTML = res.map(h =>
+    `<div class="hino-option" onmousedown="selecionarHino(event,'${inp.id}','${h.num}','${h.name.replace(/'/g,"\\'")}')">
+      <span class="hino-num">${h.num}</span>${h.name}</div>`
+  ).join('') || '<div class="hino-option" style="color:#aaa;">Nenhum hino encontrado</div>';
+  drop.classList.add('open');
+  // Adicionar keydown para navegação se ainda não adicionado
+  if (!inp._navBound) {
+    inp._navBound = true;
+    inp.addEventListener('keydown', (e) => navegarDropdown(e, drop, inp));
+  }
+}
+function selecionarHino(ev, inputId, num, name) {
+  ev.preventDefault();
+  const el = document.getElementById(inputId);
+  el.value = num + ' - ' + name;
+  document.getElementById('drop-'+inputId).classList.remove('open');
+  agendarSalvamento(el);
+}
+function hideHinos(inp, delay) {
+  setTimeout(() => document.getElementById('drop-'+inp.id)?.classList.remove('open'), delay);
+}
+
+// ============================================================
+// AUTOCOMPLETE MEMBROS
+// ============================================================
+function showMembros(inp) {
+  const q = inp.value.trim().toLowerCase();
+  const drop = document.getElementById('drop-'+inp.id);
+  if (!drop || q.length < 2) { drop?.classList.remove('open'); return; }
+  const res = MEMBROS.filter(m => m.toLowerCase().includes(q)).slice(0,15);
+  drop.innerHTML = res.map(m =>
+    `<div class="membro-option" onmousedown="selecionarMembro(event,'${inp.id}','${m.replace(/'/g,"\\'")}')">
+      ${m}</div>`
+  ).join('');
+  drop.innerHTML += `<div class="add-novo-membro" onmousedown="adicionarNovoMembro(event,'${inp.id}','${inp.value.trim().replace(/'/g,"\\'")}')">
+    ➕ Adicionar "${inp.value.trim()}" como novo membro</div>`;
+  drop.classList.add('open');
+  if (!inp._navBound) {
+    inp._navBound = true;
+    inp.addEventListener('keydown', (e) => navegarDropdown(e, drop, inp));
+  }
+}
+function selecionarMembro(ev, inputId, nome) {
+  ev.preventDefault();
+  const el = document.getElementById(inputId);
+  el.value = nome;
+  document.getElementById('drop-'+inputId).classList.remove('open');
+  agendarSalvamento(el);
+}
+async function adicionarNovoMembro(ev, inputId, nome) {
+  ev.preventDefault();
+  if (!nome) return;
+  const el = document.getElementById(inputId);
+  el.value = nome;
+  document.getElementById('drop-'+inputId).classList.remove('open');
+  if (!MEMBROS.includes(nome)) {
+    MEMBROS.push(nome); MEMBROS.sort((a,b) => a.localeCompare(b,'pt-BR'));
+    try { await sbFetch('membros_extras', 'POST', { nome, criado_por: usuarioAtual }); } catch(e) {}
+    mostrarToast(`Membro "${nome}" adicionado`);
+  }
+  agendarSalvamento(el);
+}
+function hideMembros(inp, delay) {
+  setTimeout(() => document.getElementById('drop-'+inp.id)?.classList.remove('open'), delay);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function esc(str) { return str.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+let loadingEl = null;
+function mostrarLoading(msg) {
+  loadingEl = document.createElement('div');
+  loadingEl.className = 'loading-overlay';
+  loadingEl.innerHTML = `<div class="loading-box"><div class="loading-spinner"></div>${msg}</div>`;
+  document.body.appendChild(loadingEl);
+}
+function esconderLoading() { if (loadingEl) { loadingEl.remove(); loadingEl = null; } }
+
+// ============================================================
+// AUTO-RESIZE TEXTAREA
+// ============================================================
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+// ============================================================
+// IMPRIMIR / SALVAR PDF — impressão inteligente (só campos preenchidos)
+// ============================================================
+
+// Verifica se um elemento contém algum dado preenchido
+function elementoTemDados(el) {
+  // inputs e selects
+  const inputs = el.querySelectorAll('input[type="text"], input[type="number"], select');
+  for (const inp of inputs) {
+    const v = inp.value ? inp.value.trim() : '';
+    if (v && v !== '0' && inp.placeholder !== v) return true;
+  }
+  // textareas
+  const textareas = el.querySelectorAll('textarea');
+  for (const ta of textareas) {
+    if (ta.value && ta.value.trim()) return true;
+  }
+  // inputs number com valor > 0
+  const nums = el.querySelectorAll('input[type="number"]');
+  for (const n of nums) {
+    if (n.value && parseInt(n.value) > 0) return true;
+  }
+  return false;
+}
+
+// Retorna true se o grupo repetitivo tem ao menos uma linha com dado
+function grupoTemDados(grupoId) {
+  const grupo = document.getElementById(grupoId);
+  if (!grupo) return false;
+  return elementoTemDados(grupo);
+}
+
+// Retorna true se visitantes têm algum nome preenchido
+function visitantesNomesTemDados() {
+  const grupo = document.getElementById('grupo-visitantes-nomes');
+  if (!grupo) return false;
+  return elementoTemDados(grupo);
+}
+
+function imprimirAta() {
+  const data = document.getElementById('inp-data-reuniao').value;
+  document.getElementById('print-info').textContent =
+    `Ala Bougainville · Estaca Anápolis Brasil · ${data ? formatarDataBr(data) : '—'}`;
+
+  // Atualizar proxies de textarea
+  document.querySelectorAll('textarea').forEach(ta => {
+    const proxyId = 'proxy-' + ta.id;
+    let proxy = document.getElementById(proxyId);
+    if (!proxy) {
+      proxy = document.createElement('div');
+      proxy.id = proxyId; proxy.className = 'print-text-proxy';
+      ta.parentNode.insertBefore(proxy, ta.nextSibling);
+    }
+    proxy.textContent = ta.value || '';
+    proxy.style.display = 'none';
+  });
+
+  // --- Marcar elementos para ocultação/exibição na impressão ---
+  // Limpar marcações anteriores
+  document.querySelectorAll('.print-hidden, .print-sem-dados').forEach(el => {
+    el.classList.remove('print-hidden', 'print-sem-dados');
+  });
+  document.querySelectorAll('.print-sem-dados-label').forEach(el => el.remove());
+
+  // ==== BLOCO: PRELÚDIO / ABERTURA ====
+  const camposPreludio = ['presidido','dirigido','anuncios','hino-abertura','oracao-abertura','regente','pianista'];
+  const preludioTemDado = camposPreludio.some(id => {
+    const el = document.getElementById(id);
+    return el && el.value && el.value.trim();
+  }) || visitantesNomesTemDados();
+
+  const secPreludio = document.querySelector('.section-card:nth-of-type(1) .section-body');
+  if (!preludioTemDado) {
+    marcarBlocoSemDados(secPreludio);
+  } else {
+    // Ocultar field-rows individuais sem dados
+    secPreludio && secPreludio.querySelectorAll('.field-row').forEach(row => {
+      const inp = row.querySelector('input[type="text"], textarea, select');
+      const hasData = inp ? (inp.value && inp.value.trim()) : false;
+      // Visitantes: verificar grupo especial
+      if (row.querySelector('#grupo-visitantes-nomes')) {
+        if (!visitantesNomesTemDados()) row.classList.add('print-hidden');
+      } else if (!hasData) {
+        row.classList.add('print-hidden');
+      }
+    });
+  }
+
+  // ==== BLOCO: ASSUNTOS DA ALA E ESTACA ====
+  const subBlocosAssuntos = [
+    { wrapId: 'wrap-desobrigacoes', grupoId: 'grupo-desobrigacoes' },
+    { wrapId: 'wrap-apoios',        grupoId: 'grupo-apoios' },
+    { wrapId: 'wrap-ordenacoes',    grupoId: 'grupo-ordenacoes' },
+    { wrapId: 'wrap-confirmacoes',  grupoId: 'grupo-confirmacoes' },
+    { wrapId: 'wrap-criancas',      grupoId: 'grupo-criancas' },
+  ];
+
+  // Adicionar IDs de wrap nos sub-blocos de assuntos (se ainda não tiver)
+  adicionarWrapsAssuntos();
+
+  let assuntosTemAlgum = false;
+  subBlocosAssuntos.forEach(sb => {
+    const wrap = document.getElementById(sb.wrapId);
+    if (!wrap) return;
+    const temDados = grupoTemDados(sb.grupoId);
+    if (temDados) {
+      assuntosTemAlgum = true;
+    } else {
+      wrap.classList.add('print-hidden');
+    }
+  });
+
+  const secAssuntos = document.querySelectorAll('.section-card')[1];
+  if (!assuntosTemAlgum) {
+    const body = secAssuntos && secAssuntos.querySelector('.section-body');
+    if (body) marcarBlocoSemDados(body);
+  } else {
+    // Ocultar separadores hr que ficam entre blocos ocultos
+    atualizarHrsSeparadores(secAssuntos);
+  }
+
+  // ==== BLOCO: BÊNÇÃO E DISTRIBUIÇÃO DO SACRAMENTO ====
+  // Este bloco tem orações fixas (texto) — sempre mostra, mas verifica hino
+  // O conteúdo das orações é fixo, então o bloco nunca fica "sem dados"
+  // Mas podemos ocultar o campo hino se vazio
+  const hinoSacr = document.getElementById('hino-sacramental');
+  const secSacramento = document.querySelectorAll('.section-card')[2];
+  if (hinoSacr && (!hinoSacr.value || !hinoSacr.value.trim())) {
+    const rowHino = hinoSacr.closest('.field-row');
+    if (rowHino) rowHino.classList.add('print-hidden');
+  }
+
+  // ==== BLOCO: ENCERRAMENTO ====
+  const camposEncerramentoSimples = ['orador1','orador2','hino-intermediario','orador3','hino-encerramento','oracao-encerramento'];
+  const testemunhosEl = document.getElementById('testemunhos-jejum');
+  const temTestemunhos = testemunhosEl && testemunhosEl.value && testemunhosEl.value.trim();
+
+  // Frequência — qualquer valor > 0
+  const camposFreq = ['visitantes','homens','frequencia-total'];
+  const freqTemDados = camposFreq.some(id => {
+    const el = document.getElementById(id);
+    return el && el.value && parseInt(el.value) > 0;
+  });
+
+  const faltantesTemDados = grupoTemDados('grupo-faltantes');
+
+  const encerramentoTemDados = camposEncerramentoSimples.some(id => {
+    const el = document.getElementById(id);
+    return el && el.value && el.value.trim();
+  }) || temTestemunhos || freqTemDados || faltantesTemDados;
+
+  const secEncerramento = document.querySelectorAll('.section-card')[3];
+  if (!encerramentoTemDados) {
+    const body = secEncerramento && secEncerramento.querySelector('.section-body');
+    if (body) marcarBlocoSemDados(body);
+  } else {
+    const bodyEnc = secEncerramento && secEncerramento.querySelector('.section-body');
+    if (bodyEnc) {
+      // Testemunhos de Jejum
+      const wrapTest = document.getElementById('wrap-testemunhos');
+      if (wrapTest && !temTestemunhos) wrapTest.classList.add('print-hidden');
+
+      // Oradores — ocultar linhas individuais vazias
+      camposEncerramentoSimples.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && (!el.value || !el.value.trim())) {
+          const row = el.closest('.field-row');
+          if (row) row.classList.add('print-hidden');
+        }
+      });
+      // Ocultar título "Oradores" se nenhum campo de orador preenchido
+      const temOrador = ['orador1','orador2','orador3','hino-intermediario','hino-encerramento','oracao-encerramento'].some(id => {
+        const el = document.getElementById(id);
+        return el && el.value && el.value.trim();
+      });
+      if (!temOrador) {
+        const tituloOradores = [...bodyEnc.querySelectorAll('p')].find(p => p.textContent.includes('Oradores'));
+        if (tituloOradores) tituloOradores.classList.add('print-hidden');
+      }
+
+      // Frequência
+      const wrapFreq = document.getElementById('wrap-frequencia');
+      if (wrapFreq) {
+        if (!freqTemDados) {
+          wrapFreq.classList.add('print-hidden');
+        } else {
+          camposFreq.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && (!el.value || parseInt(el.value) === 0 || el.value.trim() === '')) {
+              const item = el.closest('.freq-item');
+              if (item) item.classList.add('print-hidden');
+            }
+          });
+        }
+      }
+
+      // Faltantes
+      const wrapFalt = document.getElementById('wrap-faltantes');
+      if (wrapFalt && !faltantesTemDados) wrapFalt.classList.add('print-hidden');
+
+      atualizarHrsSeparadores(secEncerramento);
+    }
+  }
+
+  // Restaurar estado após impressão (afterprint + fallback setTimeout)
+  function restaurarPosImpressao() {
+    document.querySelectorAll('.print-hidden, .print-sem-dados').forEach(el => {
+      el.classList.remove('print-hidden', 'print-sem-dados');
+    });
+    document.querySelectorAll('.print-sem-dados-label').forEach(el => el.remove());
+    window.removeEventListener('afterprint', restaurarPosImpressao);
+  }
+  window.addEventListener('afterprint', restaurarPosImpressao);
+  setTimeout(restaurarPosImpressao, 4000); // fallback
+
+  window.print();
+}
+
+function marcarBlocoSemDados(bodyEl) {
+  if (!bodyEl) return;
+  bodyEl.classList.add('print-sem-dados');
+  const label = document.createElement('div');
+  label.className = 'print-sem-dados-label';
+  label.textContent = 'Sem dados';
+  bodyEl.prepend(label);
+}
+
+function adicionarWrapsAssuntos() {
+  const secAssuntos = document.querySelectorAll('.section-card')[1];
+  if (!secAssuntos) return;
+  const body = secAssuntos.querySelector('.section-body');
+  if (!body) return;
+
+  const mapeamento = [
+    { grupoId: 'grupo-desobrigacoes', wrapId: 'wrap-desobrigacoes' },
+    { grupoId: 'grupo-apoios',        wrapId: 'wrap-apoios' },
+    { grupoId: 'grupo-ordenacoes',    wrapId: 'wrap-ordenacoes' },
+    { grupoId: 'grupo-confirmacoes',  wrapId: 'wrap-confirmacoes' },
+    { grupoId: 'grupo-criancas',      wrapId: 'wrap-criancas' },
+  ];
+
+  mapeamento.forEach(({ grupoId, wrapId }) => {
+    if (document.getElementById(wrapId)) return; // já criado
+    const grupo = document.getElementById(grupoId);
+    if (!grupo) return;
+
+    // O wrap engloba: título (p anterior), instrucao (se houver), grupo e btn-add-row
+    // Encontrar o p de título acima do grupo
+    let titulo = grupo.previousElementSibling;
+    while (titulo && titulo.tagName !== 'P' && titulo.tagName !== 'HR') {
+      titulo = titulo.previousElementSibling;
+    }
+    if (!titulo || titulo.tagName === 'HR') titulo = null;
+
+    const wrap = document.createElement('div');
+    wrap.id = wrapId;
+    wrap.className = 'assunto-wrap';
+
+    // Inserir wrap antes do título (ou do grupo se sem título)
+    const insertBefore = titulo || grupo;
+    body.insertBefore(wrap, insertBefore);
+
+    // Mover elementos para dentro do wrap
+    if (titulo) wrap.appendChild(titulo);
+
+    // instrucao logo após o título
+    let next = wrap.nextElementSibling;
+    while (next && next.classList && next.classList.contains('instrucao')) {
+      const toMove = next;
+      next = next.nextElementSibling;
+      wrap.appendChild(toMove);
+    }
+
+    // grupo repetitivo
+    wrap.appendChild(grupo);
+
+    // btn-add-row logo após
+    next = wrap.nextElementSibling;
+    if (next && next.classList && next.classList.contains('btn-add-row')) {
+      wrap.appendChild(next);
+    }
+  });
+}
+
+function atualizarHrsSeparadores(secCard) {
+  if (!secCard) return;
+  const hrs = secCard.querySelectorAll('hr');
+  hrs.forEach(hr => {
+    hr.classList.remove('print-hidden');
+    // Se o próximo bloco visível após o hr for print-hidden ou sem dados, ocultar o hr
+    let next = hr.nextElementSibling;
+    while (next && (next.classList.contains('print-hidden') || next.classList.contains('print-sem-dados'))) {
+      next = next.nextElementSibling;
+    }
+    // Se não há próximo visível, ocultar o hr
+    if (!next) { hr.classList.add('print-hidden'); return; }
+    // Se o bloco anterior ao hr também está oculto, ocultar hr
+    let prev = hr.previousElementSibling;
+    while (prev && (prev.classList.contains('print-hidden') || prev.classList.contains('assunto-wrap') && prev.classList.contains('print-hidden'))) {
+      prev = prev.previousElementSibling;
+    }
+  });
+}
+
+// ============================================================
+// INIT — reconexão automática ao recarregar
+// ============================================================
+window.addEventListener('load', async () => {
+  const usuarioSalvo = localStorage.getItem('ata_usuario');
+  const tokenSalvo   = localStorage.getItem('ata_token');
+  const ataSalva     = localStorage.getItem('ata_id_ativo');
+  if (!usuarioSalvo || !tokenSalvo) return;
+
+  try {
+    mostrarLoading('Reconectando...');
+    const sessoes = await sbFetch(`sessoes_ativas?token=eq.${tokenSalvo}&select=usuario,ultima_atividade`);
+
+    if (sessoes.length === 0) {
+      const novoToken = gerarToken();
+      await sbFetch(`sessoes_ativas?usuario=eq.${encodeURIComponent(usuarioSalvo)}`, 'DELETE').catch(()=>{});
+      await sbFetch('sessoes_ativas', 'POST', { usuario: usuarioSalvo, token: novoToken, ultima_atividade: new Date().toISOString() });
+      usuarioAtual = usuarioSalvo; tokenSessao = novoToken;
+      localStorage.setItem('ata_token', novoToken);
+    } else {
+      usuarioAtual = usuarioSalvo; tokenSessao = tokenSalvo;
+      await sbFetch(`sessoes_ativas?token=eq.${tokenSalvo}`, 'PATCH', { ultima_atividade: new Date().toISOString() }).catch(()=>{});
+    }
+
+    esconderLoading();
+
+    if (ataSalva) {
+      // Reconectar direto na ata — pular tela de seleção
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('tela-selecao').style.display = 'none';
+      document.getElementById('badge-usuario').textContent = '👤 ' + usuarioAtual;
+      document.getElementById('sel-usuario-info').textContent = `Logado como: ${usuarioAtual}`;
+      iniciarHeartbeat();
+      await carregarMembrosExtras();
+      await carregarListaAtas();
+      inicializarGruposRepetitivos();
+      inicializarVisitantes();
+      configurarAutoSave();
+      configurarBloqueiosCampos();
+      iniciarPolling();
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('sel-ata-existente').value = ataSalva;
+      ataId = ataSalva;
+      await carregarAtaExistente();
+    } else {
+      document.getElementById('login-screen').style.display = 'none';
+      await iniciarApp(); // mostra tela de seleção
+    }
+  } catch(e) {
+    esconderLoading();
+    localStorage.removeItem('ata_usuario'); localStorage.removeItem('ata_token'); localStorage.removeItem('ata_id_ativo');
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (tokenSessao) {
+    navigator.sendBeacon(
+      SUPABASE_URL + '/rest/v1/sessoes_ativas?token=eq.' + tokenSessao,
+      new Blob([JSON.stringify({ ultima_atividade: new Date().toISOString() })], { type: 'application/json' })
+    );
+  }
+});
+</script>
+</body>
+</html>
